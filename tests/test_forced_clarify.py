@@ -106,3 +106,54 @@ def test_default_max_rounds_14():
     e = make_engine([], max_rounds=14)
     assert e.max_rounds == 14
     assert e.max_clarify_rounds == 3
+
+
+def test_resolved_matches_conflicts_with_side():
+    """澄清矛盾的 conflicts_with 指向原始矛盾的 b_quote 面 → 闭环。"""
+    from portraitist.evidence import merge_extraction
+    session = new_session()
+    session["contradictions"] = [{
+        "b_quote": "我其实很依赖朋友", "conflicts_with": "第3轮「我喜欢一个人待着」",
+        "hint": "", "b_round": 3, "resolved": False, "resolution": "",
+    }]
+    ext = {"anchors": [], "narratives": [], "contradictions": [
+        {"resolved": True, "b_quote": "独处是在充电，但需要朋友在附近",
+         "conflicts_with": "我其实很依赖朋友", "hint": ""}],
+        "reflection": {"triggered": False, "quote": ""}, "crisis": False}
+    stats = merge_extraction(session, 5, ext)
+    assert session["contradictions"][0]["resolved"] is True
+    assert stats["dropped"] == 0
+
+
+def test_resolved_matches_other_side():
+    """澄清矛盾的 conflicts_with 指向原始矛盾的 conflicts_with 面 → 闭环。"""
+    from portraitist.evidence import merge_extraction
+    session = new_session()
+    session["contradictions"] = [{
+        "b_quote": "我其实很依赖朋友", "conflicts_with": "第3轮「我喜欢一个人待着」",
+        "hint": "", "b_round": 3, "resolved": False, "resolution": "",
+    }]
+    ext = {"anchors": [], "narratives": [], "contradictions": [
+        {"resolved": True, "b_quote": "独处是在充电，但需要朋友在附近",
+         "conflicts_with": "我喜欢一个人待着", "hint": ""}],
+        "reflection": {"triggered": False, "quote": ""}, "crisis": False}
+    merge_extraction(session, 5, ext)
+    assert session["contradictions"][0]["resolved"] is True
+    assert session["contradictions"][0]["resolution"] == "独处是在充电，但需要朋友在附近"
+
+
+def test_unmatched_resolved_dropped():
+    """澄清匹配失败（无对应矛盾）→ 丢弃，不凭空产生条目。"""
+    from portraitist.evidence import merge_extraction
+    session = new_session()
+    session["contradictions"] = [{
+        "b_quote": "我其实很依赖朋友", "conflicts_with": "第3轮「我喜欢一个人待着」",
+        "hint": "", "b_round": 3, "resolved": False, "resolution": "",
+    }]
+    ext = {"anchors": [], "narratives": [], "contradictions": [
+        {"resolved": True, "b_quote": "澄清完全无关的内容",
+         "conflicts_with": "完全无关的表述", "hint": ""}],
+        "reflection": {"triggered": False, "quote": ""}, "crisis": False}
+    stats = merge_extraction(session, 5, ext)
+    assert len(session["contradictions"]) == 1
+    assert stats["dropped"] == 1

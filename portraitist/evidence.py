@@ -171,10 +171,11 @@ def merge_extraction(session: dict, round_no: int, extraction: dict) -> dict:
             for u in session["contradictions"]:
                 if u["resolved"]:
                     continue
+                # 匹配池 = 矛盾的双方表述（b_quote + conflicts_with），澄清可能指向任一面
+                hay = u["b_quote"] + " " + u.get("conflicts_with", "")
                 if (
-                    b_quote in u["b_quote"]
-                    or u["b_quote"] in b_quote
-                    or (conflicts and (conflicts in u["b_quote"] or u["b_quote"] in conflicts))
+                    b_quote in hay or hay in b_quote
+                    or (conflicts and (conflicts in hay or hay in conflicts))
                 ):
                     target = u
                     break
