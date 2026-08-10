@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 
 from . import prompts
 from .dimensions import DIMENSIONS, DIMENSION_IDS
@@ -289,8 +290,6 @@ class Engine:
             issues_all.extend(checks["issues"])
 
         report_path = self._save_report(md) if md else ""
-        from datetime import datetime, timezone
-
         self.session["report"] = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "path": os.path.relpath(report_path, self.sessions_dir) if report_path else "",
