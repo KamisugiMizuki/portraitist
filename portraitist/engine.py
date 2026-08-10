@@ -89,12 +89,13 @@ class Engine:
     # ---------- 主流程 ----------
 
     def first_question(self) -> str:
-        """会话开场第一问。"""
-        kind, payload = self._pick_next()
-        assert kind == "probe"
-        text = self._ask(payload, is_followup=False)
+        """会话开场：邀请对方先自述当前心境（不抛预设话题）。"""
+        text = (
+            "先说说你最近的状态吧——最近在想什么、心情怎么样、"
+            "有没有什么一直萦绕在心头的纠结或念头？想到什么说什么，不用组织语言。"
+        )
         self._last_question = text
-        self._transcript("assistant", text)
+        self._transcript("assistant", text, {"kind": "invitation"})
         self._save()
         return text
 
@@ -182,7 +183,7 @@ class Engine:
             self._followups[dim["id"]] = self._followups.get(dim["id"], 0) + 1
             return self._ask(dim, is_followup=True, last_user=user_reply)
         self._followups.clear()
-        return self._ask(dim, is_followup=False)
+        return self._ask(dim, is_followup=False, last_user=user_reply)
 
     def _coverage_status(self) -> str:
         """全局覆盖进度摘要（供提问器参考）。"""
@@ -193,23 +194,36 @@ class Engine:
             lines.append(f"- {dim['name']}: {mark}（{n}个）")
         return "\n".join(lines)
 
+    # 画像总结违规句式（引导师只能提问或简短反馈，禁止输出画像描述）
+    _PORTRAIT_PATTERNS = [
+        "感觉你", "你是一个", "你像是", "你是那种", "你好像",
+        "你似乎", "看起来你", "你的核心", "你的人生",
+    ]
+
     def _ask(self, dim: dict, *, is_followup: bool, last_user: str = "") -> str:
-        try:
-            return self.gateway.chat(
-                prompts.ROLE_SYSTEM,
-                prompts.question_prompt(
-                    dim,
-                    anchor_summary(self.session, dim["id"]),
-                    last_user,
-                    self._coverage_status(),
-                    is_followup=is_followup,
-                ),
-                temperature=0.8,
-                thinking=False,  # 提问是轻任务，关闭思考保延迟
-            )
-        except LLMError:
-            # 提问失败兜底：用维度探测提示生成一句基础提问
-            return f"可以跟我聊聊你在{dim['probe'].split('、')[0]}方面的一些经历吗？"
+        # 违规拦截：输出若含画像总结句式且较长，重试一次；仍违规用兜底问题
+        for _ in range(2):
+            try:
+                text = self.gateway.chat(
+                    prompts.ROLE_SYSTEM,
+                    prompts.question_prompt(
+                        dim,
+                        anchor_summary(self.session, dim["id"]),
+                        last_user,
+                        self._coverage_status(),
+                        is_followup=is_followup,
+                    ),
+                    temperature=0.8,
+                    thinking=False,  # 提问是轻任务，关闭思考保延迟
+                )
+            except LLMError:
+                text = ""
+            if text and not (
+                any(p in text for p in self._PORTRAIT_PATTERNS) and len(text) > 40
+            ):
+                return text
+        # 兜底：用维度探测提示生成一句基础提问
+        return f"可以跟我聊聊你在{dim['probe'].split('、')[0]}方面的一些经历吗？"
 
     def _ask_clarify(self, contradiction: dict) -> str:
         a_quote = contradiction.get("conflicts_with") or ""
@@ -224,10 +238,13 @@ class Engine:
         try:
             return self.gateway.chat(
                 prompts.ROLE_SYSTEM,
-                prompts.confirm_prompt(evidence_bundle(self.session)),
+                prompts.confirm_prompt(
+                    evidence_bundle(self.session),
+                    self.session["confirmation"]["revision_notes"],
+                ),
                 temperature=0.7,
-                max_tokens=600,
-                thinking=False,
+                max_tokens=800,
+                thinking=True,  # 确认需要洞察，开启思考
             )
         except LLMError:
             return "和你的对话里，我慢慢感觉到一种基调——这和你对自己的体感接近吗？"

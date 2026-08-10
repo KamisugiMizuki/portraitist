@@ -33,10 +33,10 @@ def question_prompt(
     *,
     is_followup: bool = False,
 ) -> str:
-    """生成一条针对指定维度的提问。
+    """基于对方最近发言生成针对指定维度的提问。
 
-    coverage_status: 全局覆盖进度（哪些维度已充分、哪些还缺），
-    帮助提问器在后期集中火力问缺口维度。
+    关键：问题必须呼应对方刚才说的内容（衔接感），再自然切入目标维度；
+    禁止问卷式提问。coverage_status 帮助后期集中问缺口维度。
     is_followup=True 时表示上一轮回答缺少具体场景，需要围绕同一维度追问。
     """
     if is_followup:
@@ -53,12 +53,14 @@ def question_prompt(
         else ""
     )
     return (
+        f"对方刚才的发言：\n{last_user}\n\n"
         f"当前想了解对方的「{dimension['name']}」（{dimension['desc']}）。"
         f"可以从这些角度自然切入：{dimension['probe']}。\n\n"
         f"该维度已经收集到的信息：\n{anchors_summary}\n\n"
         f"{coverage}"
-        f"请生成一句自然的提问，切入该维度且不要重复已有信息。"
-        f"问题要像聊天一样自然，不要像问卷。只说这句话本身。"
+        f"请基于对方刚才的发言，生成一句自然的提问：先轻轻呼应对方提到的内容"
+        f"（可以提及但不要长段复述），再自然地把话题引向「{dimension['name']}」方向。"
+        f"要像真正在听的朋友接着聊，不要像问卷提问。只说这句话本身。"
     )
 
 
@@ -94,13 +96,30 @@ def extract_prompt(question: str, user_reply: str, existing_summary: str) -> str
     )
 
 
-def confirm_prompt(evidence: dict) -> str:
-    """生成画像确认请求（口语化核心轮廓，≤200字）。"""
+def confirm_prompt(evidence: dict, revision_notes: str = "") -> str:
+    """生成画像确认请求（有洞察的核心轮廓，而非复述）。
+
+    revision_notes: 用户上次的修正意见（如"分析太浅"），传入以针对调整。
+    """
     summary = json.dumps(evidence, ensure_ascii=False)
+    revision_block = (
+        f"\n\n对方上次对画像描述给出了反馈：「{revision_notes}」"
+        f"请针对该反馈调整这次描述（如果对方觉得太浅/像拼凑，请加深分析，"
+        f"给出模式识别和假设性解释，而不是复述原话）。\n"
+        if revision_notes
+        else ""
+    )
     return (
-        f"基于以下证据，用口语化的方式说出你初步感知到的核心轮廓——"
-        f"一段话，像朋友复盘一样自然，不要列条目，不要用专业术语，不要提'分析''画像'等字眼。"
-        f"控制在200字以内，末尾自然地询问：这和你对自己的体感接近吗？\n\n证据：\n{summary}"
+        f"基于以下证据，说出你初步感知的核心轮廓。这次描述要有洞察，不要复述对方说过的话：\n"
+        f"1. 识别 2-3 个核心模式或内在张力点（例如\"习惯退后，但真需要时会顶上\"\"想自由又怕失控\"），"
+        f"并说明这些模式之间可能如何相互关联；\n"
+        f"2. 对其中至少一个模式给出一个温和的假设性解释（\"这可能是因为……\"），不要用专业术语，"
+        f"不要下诊断式结论；\n"
+        f"3. 最多引用对方 1-2 处原话作为例证，其余用自己的语言组织；\n"
+        f"4. 语气口语化、非评判，像真正理解对方的朋友；\n"
+        f"5. 控制在 300 字以内，末尾自然地询问：这和你对自己的体感接近吗？\n"
+        f"{revision_block}"
+        f"\n证据：\n{summary}"
     )
 
 

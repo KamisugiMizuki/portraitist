@@ -74,7 +74,7 @@ def main() -> None:
     engine = Engine(session, gateway, config, SESSIONS_DIR)
 
     print("\n你好，我是你的心理探索伙伴。")
-    print("接下来我们会聊 8~12 轮左右，我会问一些关于你生活经历的问题。")
+    print("先说说你最近的状态吧，我会顺着你说的慢慢聊。")
     print("没有对错答案，想到什么说什么就好。（/status 可查看进度，/quit 退出）\n")
 
     if session["rounds"] == 0:
