@@ -16,7 +16,8 @@ local:
   timeout: 300
 
 # 引擎参数
-max_rounds: 12             # 安全上限（SYSTEM_PROMPT 原文）
+max_rounds: 14             # 访谈轮数上限（11 维度×2 锚点需要；用户拍板由 12 提升）
+max_clarify_rounds: 3      # 结尾强制澄清：确认前未解决矛盾的澄清轮上限（在上限外宽容）
 anchors_per_dimension: 2   # 每维度锚点饱和度
 reflection_grace_rounds: 8 # 8 轮内未触发深层反思可跳过（C-4 弹性条件）
 c3_window_rounds: 3        # C-3 信息增益检查窗口

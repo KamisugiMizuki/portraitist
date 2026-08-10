@@ -43,7 +43,10 @@ class Engine:
         self.gateway = gateway
         self.config = config
         self.sessions_dir = sessions_dir
-        self.max_rounds = int(config.get("max_rounds", 12))
+        self.max_rounds = int(config.get("max_rounds", 14))
+        # 结尾强制澄清：确认前未解决矛盾的澄清轮上限（在上限外宽容）
+        self.max_clarify_rounds = int(config.get("max_clarify_rounds", 3))
+        self._clarify_rounds = 0
         self.anchors_per_dim = int(config.get("anchors_per_dimension", 2))
         self.grace_rounds = int(config.get("reflection_grace_rounds", 8))
         self.c3_window = int(config.get("c3_window_rounds", 3))
@@ -149,6 +152,21 @@ class Engine:
         # 4. 终止判定
         term = self._evaluate_termination(round_no)
         if term["done"]:
+            unresolved = unresolved_contradictions(self.session)
+            if unresolved and self._clarify_rounds < self.max_clarify_rounds:
+                # 结尾强制澄清：先解决矛盾再进确认（澄清轮在上限外宽容，最多 max_clarify_rounds 轮）
+                self._clarify_rounds += 1
+                self._followups.clear()
+                text = self._ask_clarify(unresolved[0])
+                self._transcript("assistant", text, {"kind": "clarify_forced"})
+                self.session["termination"] = {
+                    "c1": term["c1"], "c2": term["c2"], "c3": term["c3"],
+                    "c4": term["c4"], "c4_skipped": term["c4_skipped"],
+                    "reached_cap": term["reached_cap"],
+                    "notes": term["notes"] + "; 强制澄清阶段（未完成）",
+                }
+                self._save()
+                return {"text": text, "state": "active", "note": "clarify_forced"}
             self.session["termination"] = {
                 "c1": term["c1"], "c2": term["c2"], "c3": term["c3"],
                 "c4": term["c4"], "c4_skipped": term["c4_skipped"],
@@ -268,7 +286,7 @@ class Engine:
         done = (c1 and c2 and (c3 or c4 or c4_skipped)) or reached_cap
         notes = []
         if reached_cap:
-            notes.append("达到12轮上限，生成阶段性画像")
+            notes.append(f"达到{self.max_rounds}轮上限，生成阶段性画像")
         elif c4_skipped and not c4:
             notes.append("深层反思未充分触发（8轮内），弹性跳过")
         return {

@@ -94,8 +94,10 @@ def run_one(config: dict, template: str, iteration: int) -> dict:
                 "report_ok": engine.session["report"]["checks"].get("ok"),
                 "report_issues": engine.session["report"]["checks"].get("issues", [])[:5],
             }
-        if rounds >= 14:
-            print("[异常] 超过 14 轮仍未结束")
+        # 循环保护：上限 = 访谈轮数上限 + 强制澄清宽容轮数
+        guard = engine.max_rounds + engine.max_clarify_rounds
+        if rounds >= guard:
+            print(f"[异常] 超过 {guard} 轮仍未结束")
             return {"rounds": rounds, "error": "loop_guard"}
 
 
