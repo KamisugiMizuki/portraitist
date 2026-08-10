@@ -25,19 +25,24 @@ BARNUM_PATTERNS = [
     re.compile(r"既[^，。；、]{0,10}又[^，。；、]{0,10}"),
 ]
 
-# 六段结构检查：数字标题 + 非诊断声明
+# 六段结构检查：兼容 "1. 核心特质图谱" 与 "## 一、核心特质图谱" 两种格式
 SECTION_PATTERNS = [
-    re.compile(r"1[.、]\s*核心特质图谱"),
-    re.compile(r"2[.、]\s*深层动力引擎"),
-    re.compile(r"3[.、]\s*关系剧本"),
-    re.compile(r"4[.、]\s*生命叙事"),
-    re.compile(r"5[.、]\s*(综合真实自我描述|✨)"),
-    re.compile(r"6[.、]\s*成长视角"),
+    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*核心特质图谱", re.M),
+    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*深层动力引擎", re.M),
+    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*关系剧本", re.M),
+    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*生命叙事", re.M),
+    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*(?:综合真实自我描述|✨)", re.M),
+    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*成长视角", re.M),
     re.compile(r"非诊断声明|不具备临床诊断"),
 ]
 
 CITATION_RE = re.compile(r"依据[：:]\s*轮次?\s*(\d+)")
 CITATION_ALT_RE = re.compile(r"〔轮次?\s*(\d+)〕|\[轮\s*(\d+)\]")
+
+# 段起始：数字标题（1. / 一、）或 🧠 头，可带 markdown ## 前缀
+SECTION_START_RE = re.compile(
+    r"^\s*(?:#{1,3}\s*)?(?:[1-9][.、]|[一二三四五六七八九十]+[、.])\s*\S"
+)
 
 
 def check_report(md: str, session: dict) -> dict:
@@ -63,11 +68,15 @@ def check_report(md: str, session: dict) -> dict:
     # 3. 引用检查：按数字标题切段，每段至少 1 处引用（报告头/声明段除外）
     sections = _split_sections(md)
     max_round = session.get("rounds", 0)
+    round_stats = session.get("round_stats") or []
     for title, body in sections:
         if title == "(报告头)":
             continue
         citations = CITATION_RE.findall(body) + [x or y for x, y in CITATION_ALT_RE.findall(body)]
         if not citations:
+            # 合理推测段（显式标注"推测"）允许无引用；未标注的缺引用段打回
+            if "推测" in body:
+                continue
             issues.append(f"段落无引用: {title}")
             continue
         for c in citations:
@@ -78,18 +87,29 @@ def check_report(md: str, session: dict) -> dict:
                 continue
             if r < 1 or r > max_round:
                 issues.append(f"引用轮次越界(>第{max_round}轮): 第{r}轮 @ {title}")
+                continue
+            # 引用轮次必须有锚点产出，否则疑似编造（空证据幻觉防护）
+            if round_stats:
+                entry = next((w for w in round_stats if w.get("round") == r), None)
+                if entry is None or entry.get("new_anchors", 0) <= 0:
+                    issues.append(f"引用轮次{r}无锚点产出（疑似编造）: @ {title}")
+
+    # 4. 证据总量门槛：锚点过少时标注证据稀疏（不阻塞，用于阶段性画像场景）
+    total_anchors = sum(len(d["anchors"]) for d in session.get("dimensions", {}).values())
+    if total_anchors < 4:
+        issues.append(f"证据稀疏（锚点总数={total_anchors}），报告依据严重不足")
 
     return {"ok": not issues, "issues": issues}
 
 
 def _split_sections(md: str) -> list[tuple[str, str]]:
-    """按数字标题切分报告段落，返回 [(标题, 正文)]。"""
+    """按标题切分报告段落（兼容数字/中文数字/markdown 标题），返回 [(标题, 正文)]。"""
     lines = md.splitlines()
     sections = []
     current_title = "(报告头)"
     current_body = []
     for line in lines:
-        if re.match(r"^\s*\d+[.、]\s*\S", line) or line.startswith("🧠"):
+        if SECTION_START_RE.match(line) or line.startswith("🧠"):
             if current_body:
                 sections.append((current_title, "\n".join(current_body)))
             current_title = line.strip()[:30]

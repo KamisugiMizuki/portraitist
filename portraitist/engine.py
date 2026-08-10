@@ -50,6 +50,8 @@ class Engine:
         self.c3_max_anchors = int(config.get("c3_max_new_anchors", 1))
         # 连续追问计数器：{dim_id: n}
         self._followups = {}
+        # 上一轮引导师提问文本（提取器需要知道用户在回答什么问题）
+        self._last_question = ""
         # 每轮合并统计（C-3 输入）
         self.session.setdefault("round_stats", [])
 
@@ -82,6 +84,7 @@ class Engine:
         kind, payload = self._pick_next()
         assert kind == "probe"
         text = self._ask(payload, is_followup=False)
+        self._last_question = text
         self._transcript("assistant", text)
         self._save()
         return text
@@ -105,7 +108,8 @@ class Engine:
         existing = self._existing_summary()
         try:
             extraction = self.gateway.chat_json(
-                prompts.EXTRACT_SYSTEM, prompts.extract_prompt(user_reply, existing)
+                prompts.EXTRACT_SYSTEM,
+                prompts.extract_prompt(self._last_question, user_reply, existing),
             )
         except LLMError as e:
             # 提取失败：不崩溃，按"无新锚点"处理并重试提问
@@ -153,6 +157,7 @@ class Engine:
 
         # 5. 正常提问（追问 or 新维度）
         text = self._next_question(user_reply, stats)
+        self._last_question = text
         self._transcript("assistant", text)
         self._save()
         return {"text": text, "state": self.session["status"], "note": ""}
@@ -170,6 +175,15 @@ class Engine:
         self._followups.clear()
         return self._ask(dim, is_followup=False)
 
+    def _coverage_status(self) -> str:
+        """全局覆盖进度摘要（供提问器参考）。"""
+        lines = []
+        for dim in DIMENSIONS:
+            n = anchor_count(self.session, dim["id"])
+            mark = "已充分" if n >= self.anchors_per_dim else f"缺{self.anchors_per_dim - n}"
+            lines.append(f"- {dim['name']}: {mark}（{n}个）")
+        return "\n".join(lines)
+
     def _ask(self, dim: dict, *, is_followup: bool, last_user: str = "") -> str:
         try:
             return self.gateway.chat(
@@ -178,9 +192,11 @@ class Engine:
                     dim,
                     anchor_summary(self.session, dim["id"]),
                     last_user,
+                    self._coverage_status(),
                     is_followup=is_followup,
                 ),
                 temperature=0.8,
+                thinking=False,  # 提问是轻任务，关闭思考保延迟
             )
         except LLMError:
             # 提问失败兜底：用维度探测提示生成一句基础提问
@@ -202,6 +218,7 @@ class Engine:
                 prompts.confirm_prompt(evidence_bundle(self.session)),
                 temperature=0.7,
                 max_tokens=600,
+                thinking=False,
             )
         except LLMError:
             return "和你的对话里，我慢慢感觉到一种基调——这和你对自己的体感接近吗？"
@@ -279,7 +296,8 @@ class Engine:
                     prompts.report_prompt(evidence),
                     model=self.gateway.report_model,
                     temperature=0.6,
-                    max_tokens=4000,
+                    max_tokens=8000,
+                    thinking=True,  # 报告质量优先，思考模式
                 )
             except LLMError as e:
                 issues_all.append(f"LLM 报告生成失败: {e}")

@@ -63,7 +63,14 @@ class LLMGateway:
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,
+        thinking: bool | None = None,
     ) -> str:
+        """调用 chat/completions。
+
+        thinking: True=强制思考模式（quality优先）；False=关闭思考（latency优先）；
+        None=模型默认。
+        注意：DeepSeek 文档——思考模式下 temperature/top_p 等参数不生效。
+        """
         payload = {
             "model": model or self.chat_model,
             "messages": [
@@ -74,6 +81,10 @@ class LLMGateway:
             "max_tokens": max_tokens,
             "stream": False,
         }
+        if thinking is True:
+            payload["thinking"] = {"type": "enabled"}
+        elif thinking is False:
+            payload["thinking"] = {"type": "disabled"}
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -100,8 +111,11 @@ class LLMGateway:
         *,
         model: str | None = None,
         temperature: float = 0.2,
-        max_tokens: int = 3000,
+        max_tokens: int = 4000,
     ) -> dict:
         return parse_json_response(
-            self.chat(system, user, model=model, temperature=temperature, max_tokens=max_tokens)
+            self.chat(
+                system, user, model=model, temperature=temperature,
+                max_tokens=max_tokens, thinking=True,
+            )
         )

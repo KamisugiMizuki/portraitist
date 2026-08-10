@@ -2,11 +2,11 @@
 backend: remote            # remote（默认）| local（LM Studio，数据不出机）
 
 # 模型分级：对话轮轻量模型 / 报告强模型
-chat_model: deepseek-chat
-report_model: deepseek-chat
+chat_model: deepseek-v4-flash
+report_model: deepseek-v4-pro
 
 remote:
-  base_url: https://api.deepseek.com/v1
+  base_url: https://api.deepseek.com
   api_key: ""              # 填入 API key
   timeout: 120
 

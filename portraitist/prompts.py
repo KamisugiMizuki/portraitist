@@ -10,6 +10,11 @@ from __future__ import annotations
 
 import json
 
+from .dimensions import DIMENSIONS
+
+# 中文名 → id 反查（合并时的兜底，防止模型用中文名导致锚点丢弃）
+NAME_TO_ID = {d["name"]: d["id"] for d in DIMENSIONS}
+
 ROLE_SYSTEM = """你是一位兼具敏锐洞察力与共情能力的心理探索引导师。你的核心使命不是贴标签，而是通过苏格拉底式提问，帮助对方剥离社会期待与防御机制，触及深层的核心特质、内在动机、价值排序与生命叙事。
 
 铁律：
@@ -20,9 +25,18 @@ ROLE_SYSTEM = """你是一位兼具敏锐洞察力与共情能力的心理探索
 5. 绝不用诊断术语，绝不贴标签。"""
 
 
-def question_prompt(dimension: dict, anchors_summary: str, last_user: str, *, is_followup: bool = False) -> str:
+def question_prompt(
+    dimension: dict,
+    anchors_summary: str,
+    last_user: str,
+    coverage_status: str = "",
+    *,
+    is_followup: bool = False,
+) -> str:
     """生成一条针对指定维度的提问。
 
+    coverage_status: 全局覆盖进度（哪些维度已充分、哪些还缺），
+    帮助提问器在后期集中火力问缺口维度。
     is_followup=True 时表示上一轮回答缺少具体场景，需要围绕同一维度追问。
     """
     if is_followup:
@@ -33,32 +47,44 @@ def question_prompt(dimension: dict, anchors_summary: str, last_user: str, *, is
             f"该维度已有的信息：\n{anchors_summary}\n\n"
             f"只说一句话的追问，不要总结。"
         )
+    coverage = (
+        f"\n整体访谈覆盖进度（用于参考，不要直接提及）：\n{coverage_status}\n"
+        if coverage_status
+        else ""
+    )
     return (
         f"当前想了解对方的「{dimension['name']}」（{dimension['desc']}）。"
         f"可以从这些角度自然切入：{dimension['probe']}。\n\n"
         f"该维度已经收集到的信息：\n{anchors_summary}\n\n"
+        f"{coverage}"
         f"请生成一句自然的提问，切入该维度且不要重复已有信息。"
         f"问题要像聊天一样自然，不要像问卷。只说这句话本身。"
     )
 
 
-EXTRACT_SYSTEM = """你是一个心理访谈证据提取器。你的输入是访谈中用户的最新一条回复，以及已有证据摘要。
+EXTRACT_SYSTEM = """你是一个心理访谈证据提取器。你的输入是：访谈中引导师的最新提问、用户对它的回复、以及已有证据摘要。
 你的任务：把这条回复中出现的心理行为证据结构化提取为 JSON。你不是分析者，只做忠实提取。
 
 规则：
 1. anchors：本条回复中新出现的具体行为锚点。quote 必须直接引用用户原话（原样，不加润色）；scene 用一两句话概括场景；direction 只能根据行为描述内容判断（例如"主动组织聚会"→extravert），不可臆测，无法判断则不填或用 "mixed"。
-2. narratives：如果用户讲述了人生重要事件（高潮/低潮/转折/关键选择），提取为叙事事件，type 取 high/low/turning。
-3. contradictions：如果本条回复中的表述与已有证据明显冲突（立场或行为模式层面），列出矛盾。b_quote 是本条回复中的原话，conflicts_with 简述与之冲突的已有证据（引用轮次），hint 说明矛盾点。非明显的语气差异不要报。
-4. 如果本条回复是在澄清输入中标注的「未解决矛盾」（用户在解释两面如何共存），请输出 contradictions 条目并设置 resolved=true，b_quote 摘录用户的澄清/整合性解释，conflicts_with 引用被澄清的矛盾表述。已解决的矛盾不要再次报告。
-5. reflection：如果用户表现出"我从没这样想过""原来我……""第一次意识到"这类顿悟或自发因果解释，triggered=true 并摘录原话。
-6. crisis：如果用户出现自杀/自伤意念的直接或间接表达，置 true。
-7. 没有对应内容时，数组返回空列表，triggered 返回 false。只输出 JSON，不要任何其他文字。"""
+2. 维度分配：优先提取与引导师提问主题对应的维度；一条回复可同时为多个维度提供锚点（例如"我提前三天拉了个局"既可能是能量倾向也是秩序感），但**每个维度最多 1 个锚点，总数最多 4 个**；不要把全部内容都塞进同一个维度。
+3. dimension 必须使用「维度 id 对照表」中的英文 id，禁止使用中文名或自造名称。
+4. narratives：如果用户讲述了人生重要事件（高潮/低潮/转折/关键选择），提取为叙事事件，type 取 high/low/turning。
+5. contradictions：如果本条回复中的表述与已有证据明显冲突（立场或行为模式层面），列出矛盾。b_quote 是本条回复中的原话，conflicts_with 简述与之冲突的已有证据（引用轮次），hint 说明矛盾点。非明显的语气差异不要报。
+6. 如果本条回复是在澄清输入中标注的「未解决矛盾」（用户在解释两面如何共存），请输出 contradictions 条目并设置 resolved=true，b_quote 摘录用户的澄清/整合性解释，conflicts_with 引用被澄清的矛盾表述。已解决的矛盾不要再次报告。
+7. reflection：如果用户表现出"我从没这样想过""原来我……""第一次意识到"这类顿悟或自发因果解释，triggered=true 并摘录原话。
+8. crisis：如果用户出现自杀/自伤意念的直接或间接表达，置 true。
+9. 没有对应内容时，数组返回空列表，triggered 返回 false。只输出 JSON，不要任何其他文字。"""
 
 
-def extract_prompt(user_reply: str, existing_summary: str) -> str:
+def extract_prompt(question: str, user_reply: str, existing_summary: str) -> str:
+    dim_map = "\n".join(f"- {d['id']}: {d['name']}（{d['desc']}）" for d in DIMENSIONS)
     return (
+        f"引导师刚才的提问：\n{question}\n\n"
         f"已有证据摘要：\n{existing_summary}\n\n"
         f"用户最新回复：\n{user_reply}\n\n"
+        f"维度 id 对照表（anchors 的 dimension 字段必须使用左侧英文 id）：\n"
+        f"{dim_map}\n\n"
         f"输出 JSON（格式如下）：\n"
         f'{{"anchors": [{{"dimension": "维度id", "quote": "原话", "scene": "场景概括", "direction": "标签"}}], '
         f'"narratives": [{{"type": "high|low|turning", "story": "故事概括"}}], '

@@ -73,7 +73,8 @@ def run_one(config: dict, template: str, iteration: int) -> dict:
     while True:
         try:
             reply = gateway.chat(
-                user_system, f"对方问：{q}\n\n请以受访者身份回答。", temperature=0.9, max_tokens=300
+                user_system, f"对方问：{q}\n\n请以受访者身份回答。",
+                temperature=0.9, max_tokens=300, thinking=False,
             )
         except LLMError as e:
             print(f"[用户扮演失败] {e}")

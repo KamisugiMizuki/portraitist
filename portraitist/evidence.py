@@ -13,6 +13,34 @@ import uuid
 from datetime import datetime, timezone
 
 from .dimensions import DIMENSION_IDS, DIRECTIONS_BY_DIM
+from .prompts import NAME_TO_ID
+
+# 关键词 → 维度 id 模糊匹配（提取器可能输出"内向性""依恋""人生故事"等变体）
+KEYWORD_TO_ID = {
+    "能量": "trait_energy", "外向": "trait_energy", "内向": "trait_energy",
+    "秩序": "trait_order", "条理": "trait_order", "计划": "trait_order",
+    "情绪": "trait_emotion", "敏感": "trait_emotion",
+    "开放": "trait_openness",
+    "协作": "trait_agree", "宜人": "trait_agree",
+    "驱力": "motive_drive", "动机": "motive_drive",
+    "价值": "motive_value",
+    "自我": "self_discrepancy", "理想": "self_discrepancy",
+    "依恋": "rel_attachment",
+    "防御": "rel_defense", "压力反应": "rel_defense",
+    "叙事": "narrative_identity", "人生故事": "narrative_identity", "生命故事": "narrative_identity",
+}
+
+
+def resolve_dimension(dim: str) -> str:
+    """维度标识容错：英文 id > 精确中文名 > 关键词包含匹配。"""
+    if dim in DIMENSION_IDS:
+        return dim
+    if dim in NAME_TO_ID:
+        return NAME_TO_ID[dim]
+    for kw, did in KEYWORD_TO_ID.items():
+        if kw in dim:
+            return did
+    return ""
 
 VALID_ANCHOR_DIRECTIONS = {d: set(v) for d, v in DIRECTIONS_BY_DIM.items()}
 NARRATIVE_TYPES = {"high", "low", "turning"}
@@ -87,7 +115,8 @@ def anchor_summary(session: dict, dim_id: str, max_quotes: int = 4) -> str:
 
 def merge_extraction(session: dict, round_no: int, extraction: dict) -> dict:
     """将提取器输出合并入证据库。返回合并统计（供测试与日志）。"""
-    stats = {"anchors": 0, "narratives": 0, "contradictions": 0, "reflection": False, "crisis": False}
+    stats = {"anchors": 0, "narratives": 0, "contradictions": 0, "reflection": False, "crisis": False,
+             "dropped": 0}
 
     # 危机信号（提取器标注 + 关键词层双保险）
     crisis = bool(extraction.get("crisis"))
@@ -101,10 +130,11 @@ def merge_extraction(session: dict, round_no: int, extraction: dict) -> dict:
 
     # 行为锚点
     for a in extraction.get("anchors") or []:
-        dim = a.get("dimension", "")
+        dim = resolve_dimension(a.get("dimension", ""))
         quote = (a.get("quote") or "").strip()
         scene = (a.get("scene") or "").strip()
         if dim not in DIMENSION_IDS or not quote:
+            stats["dropped"] += 1
             continue
         direction = a.get("direction", "mixed")
         valid = VALID_ANCHOR_DIRECTIONS[dim]
