@@ -1,0 +1,12 @@
+[project]
+name = "portraitist"
+version = "0.1.0"
+description = "苏格拉底式多轮对话性格画像分析工具（自我觉察，非诊断）"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31",
+    "PyYAML>=6.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
