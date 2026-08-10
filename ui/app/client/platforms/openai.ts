@@ -37,6 +37,7 @@ import {
 } from "../api";
 import Locale from "../../locales";
 import { getClientConfig } from "@/app/config/client";
+import { PORTRAITIST_BASE } from "@/app/utils/portraitist";
 import {
   getMessageTextContent,
   isVisionModel,
@@ -100,7 +101,7 @@ export class ChatGPTApi implements LLMApi {
 
     if (baseUrl.length === 0) {
       // portraitist fork：默认直连本地 FastAPI 后端（OpenAI 兼容口；不含 /v1）
-      baseUrl = "http://127.0.0.1:8000";
+      baseUrl = PORTRAITIST_BASE;
     }
 
     if (baseUrl.endsWith("/")) {

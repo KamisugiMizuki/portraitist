@@ -122,7 +122,7 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from "../utils/ms_edge_tts";
 import { getModelProvider } from "../utils/model";
 import { RealtimeChat } from "@/app/components/realtime-chat";
 import clsx from "clsx";
-import { fetchStatuses } from "../utils/portraitist";
+import { useAllSessionStatuses } from "../utils/portraitist";
 
 const localStorage = safeLocalStorage();
 
@@ -1063,20 +1063,8 @@ function _Chat() {
   };
 
   // portraitist：当前会话后端状态（报告入口判定）
-  const [badge, setBadge] = useState("");
-  useEffect(() => {
-    let alive = true;
-    const poll = async () => {
-      const st = await fetchStatuses();
-      if (alive) setBadge(st[session.id] || "");
-    };
-    poll();
-    const timer = setInterval(poll, 30_000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, [session.id]);
+  const statuses = useAllSessionStatuses();
+  const badge = statuses[session.id] || "";
 
   // stop response
   const onUserStop = (messageId: string) => {

@@ -18,7 +18,7 @@ import { Mask } from "../store/mask";
 import { useRef, useEffect, useState } from "react";
 import { showConfirm } from "./ui-lib";
 import { useMobileScreen } from "../utils";
-import { fetchStatuses } from "../utils/portraitist";
+import { useAllSessionStatuses } from "../utils/portraitist";
 import clsx from "clsx";
 
 export function ChatItem(props: {
@@ -134,20 +134,7 @@ export function ChatList(props: { narrow?: boolean }) {
   const isMobileScreen = useMobileScreen();
 
   // portraitist：轮询后端会话状态（30s），驱动生命周期徽章
-  const [badges, setBadges] = useState<Record<string, string>>({});
-  useEffect(() => {
-    let alive = true;
-    const poll = async () => {
-      const st = await fetchStatuses();
-      if (alive) setBadges(st);
-    };
-    poll();
-    const timer = setInterval(poll, 30_000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
+  const badges = useAllSessionStatuses();
 
   const onDragEnd: OnDragEndResponder = (result) => {
     const { destination, source } = result;

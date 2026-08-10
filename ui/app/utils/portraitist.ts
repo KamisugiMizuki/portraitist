@@ -1,4 +1,5 @@
 import type { RequestMessage } from "../client/api";
+import { useEffect, useState } from "react";
 
 // portraitist 后端会话映射（M3 接线）
 //
@@ -27,12 +28,6 @@ export function getPortraitistSessionId(localSessionId: string): string {
   return map()[localSessionId] || "";
 }
 
-export function clearPortraitistSession(localSessionId: string) {
-  const m = map();
-  delete m[localSessionId];
-  save(m);
-}
-
 /** 确保本地会话已绑定后端会话；未绑定时创建并返回欢迎文本（无则空串）。 */
 export async function ensurePortraitistSession(
   localSessionId: string,
@@ -58,16 +53,36 @@ export async function fetchStatuses(): Promise<Record<string, string>> {
     if (!resp.ok) return {};
     const data = await resp.json();
     const m = map();
+    // 先按后端 id 建索引，再映射到本地 id（O(n+m)）
+    const byBackend: Record<string, string> = {};
+    for (const s of data.sessions || []) byBackend[s.session_id] = s.status;
     const out: Record<string, string> = {};
-    for (const s of data.sessions || []) {
-      for (const [localId, sid] of Object.entries(m)) {
-        if (sid === s.session_id) out[localId] = s.status;
-      }
+    for (const [localId, sid] of Object.entries(m)) {
+      if (byBackend[sid]) out[localId] = byBackend[sid];
     }
     return out;
   } catch {
     return {};
   }
+}
+
+/** 轮询全部本地会话的后端状态（30s），驱动生命周期徽章。 */
+export function useAllSessionStatuses(): Record<string, string> {
+  const [statuses, setStatuses] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let alive = true;
+    const poll = async () => {
+      const st = await fetchStatuses();
+      if (alive) setStatuses(st);
+    };
+    poll();
+    const timer = setInterval(poll, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, []);
+  return statuses;
 }
 
 /** 请求体注入 system 标记；未绑定时返回原数组（发送前应已 ensure）。 */
