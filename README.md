@@ -36,7 +36,8 @@ config.example.yaml  配置模板（复制为 config.yaml 填写）
 
 ```bash
 uv venv .venv                            # 独立 venv（每个项目单独建，防环境污染）
-.venv/Scripts/python.exe -m pip install -r requirements.txt pytest
+uv pip install --python .venv/Scripts/python.exe -r requirements.txt pytest   # 注意：用 uv pip 指定目标，
+                                           # 不要用 python -m pip（Hermes 桌面的 PYTHONPATH 会导致装错环境）
 cp config.example.yaml config.yaml       # 填入 API key，或 backend: local 连 LM Studio
 .venv/Scripts/python.exe cli.py          # 开始访谈
 .venv/Scripts/python.exe -m pytest tests/            # 运行测试
