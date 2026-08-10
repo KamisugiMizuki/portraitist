@@ -50,6 +50,8 @@ class Engine:
         self.c3_max_anchors = int(config.get("c3_max_new_anchors", 1))
         # 连续追问计数器：{dim_id: n}
         self._followups = {}
+        # 最近 probe 过的维度（防连续选中同一维度，避免"绕圈"感）
+        self._recent_probes = []
         # 上一轮引导师提问文本（提取器需要知道用户在回答什么问题）
         self._last_question = ""
         # 每轮合并统计（C-3 输入）
@@ -69,13 +71,20 @@ class Engine:
     # ---------- 调度 ----------
 
     def _pick_next(self) -> tuple[str, dict]:
-        """选择下一步：未解决矛盾 > 最欠饱和维度。返回 (kind, payload)。"""
+        """选择下一步：未解决矛盾 > 最欠饱和维度（最近问过的维度暂时跳过）。"""
         contradictions = unresolved_contradictions(self.session)
         if contradictions:
             return ("clarify", contradictions[0])
         counts = [(d["id"], anchor_count(self.session, d["id"])) for d in DIMENSIONS]
-        counts.sort(key=lambda x: x[1])
-        return ("probe", next(d for d in DIMENSIONS if d["id"] == counts[0][0]))
+        # 防连续：排除最近 2 轮 probe 过的维度；若排除后无欠饱和候选则全部纳入
+        recent = self._recent_probes[-2:]
+        candidates = [c for c in counts if c[0] not in recent]
+        if not candidates or all(c[1] >= self.anchors_per_dim for c in candidates):
+            candidates = counts
+        candidates.sort(key=lambda x: x[1])
+        dim_id = candidates[0][0]
+        self._recent_probes.append(dim_id)
+        return ("probe", next(d for d in DIMENSIONS if d["id"] == dim_id))
 
     # ---------- 主流程 ----------
 
