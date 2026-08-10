@@ -174,7 +174,7 @@ def merge_extraction(session: dict, round_no: int, extraction: dict) -> dict:
                 if (
                     b_quote in u["b_quote"]
                     or u["b_quote"] in b_quote
-                    or (conflicts and conflicts in u["b_quote"])
+                    or (conflicts and (conflicts in u["b_quote"] or u["b_quote"] in conflicts))
                 ):
                     target = u
                     break
@@ -184,6 +184,9 @@ def merge_extraction(session: dict, round_no: int, extraction: dict) -> dict:
                 target["resolution_round"] = round_no
                 stats["contradictions"] += 1
                 continue
+            # 澄清匹配失败（无对应矛盾）→ 丢弃，不凭空产生条目
+            stats["dropped"] += 1
+            continue
         session["contradictions"].append(
             {
                 "b_quote": b_quote,
