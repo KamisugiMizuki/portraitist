@@ -38,10 +38,20 @@ def session_with_rounds(n=8):
         {"round": r, "new_anchors": 1, "new_contradictions": 0, "new_narratives": 0, "reflection": False}
         for r in range(1, n + 1)
     ]
-    # 满足非稀疏场景（锚点 ≥6）
-    s["dimensions"]["trait_energy"]["anchors"] = [{"quote": "x", "round": 2}, {"quote": "y", "round": 5}]
-    s["dimensions"]["trait_order"]["anchors"] = [{"quote": "z", "round": 3}, {"quote": "w", "round": 6}]
-    s["dimensions"]["trait_emotion"]["anchors"] = [{"quote": "v", "round": 4}, {"quote": "u", "round": 7}]
+    # 满足非稀疏场景（锚点 ≥6）；quotes 与 GOOD_REPORT 引用内容一致（真实性校验）
+    s["dimensions"]["trait_energy"]["anchors"] = [
+        {"quote": "我周末会去逛美术馆", "round": 2},
+        {"quote": "我不怕跟伴侣吵架", "round": 5},
+        {"quote": "朋友说我其实很坚韧", "round": 8},
+    ]
+    s["dimensions"]["trait_order"]["anchors"] = [
+        {"quote": "我习惯把待办写下来", "round": 3},
+        {"quote": "高考失利后我复读了一年", "round": 6},
+    ]
+    s["dimensions"]["trait_emotion"]["anchors"] = [
+        {"quote": "我最受不了被人指挥", "round": 4},
+        {"quote": "我越来越接受自己了", "round": 7},
+    ]
     return s
 
 
@@ -137,6 +147,46 @@ def test_fabricated_citation_fails():
     checks = check_report(md, s)
     assert checks["ok"] is False
     assert any("疑似编造" in i for i in checks["issues"])
+
+
+def test_fabricated_quote_content_fails():
+    """引用轮次有锚点但内容与原话不符 → 疑似编造（真实性校验）。"""
+    s = session_with_rounds()
+    md = GOOD_REPORT.replace("依据：轮次2·「我周末会去逛美术馆」。", "依据：轮次2·「我从来没逛过美术馆」。")
+    checks = check_report(md, s)
+    assert checks["ok"] is False
+    assert any("内容与证据不符" in i for i in checks["issues"])
+
+
+def test_quote_elision_accepted():
+    """节选/润色引用应通过（宽松匹配）。"""
+    s = session_with_rounds()
+    md = GOOD_REPORT.replace("「我周末会去逛美术馆」", "「周末会去逛美术馆」")  # 节选
+    checks = check_report(md, s)
+    assert checks["ok"] is True, checks["issues"]
+
+
+def test_mbti_label_blacklisted():
+    md = GOOD_REPORT.replace("安全型", "INFP")
+    checks = check_report(md, session_with_rounds())
+    assert checks["ok"] is False
+    assert any("诊断术语" in i or "标签" in i for i in checks["issues"])
+
+
+def test_absolute_statement_allowed():
+    """'你总是X'在有依据时是具体断言，不算 Barnum（引用校验兜底）。"""
+    md = GOOD_REPORT.replace("安全型。", "你总是那个率先打破僵局的人。")
+    checks = check_report(md, session_with_rounds())
+    assert checks["ok"] is True, checks["issues"]
+
+
+def test_confidence_labels_missing_warns():
+    """第 1 段特质条目缺置信度标注 → warning 不阻塞。"""
+    s = session_with_rounds()
+    md = GOOD_REPORT.replace("依据充分。", "。")  # 去掉全部置信度标注
+    checks = check_report(md, s)
+    assert checks["ok"] is True
+    assert any("置信度" in w for w in checks["warnings"])
 
 
 def test_sparse_evidence_warns():
