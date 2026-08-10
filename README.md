@@ -11,20 +11,35 @@
 
 ## 当前状态
 
-**设计阶段**（2026-08-11）：研究调查与设计方案已完成，见 [DESIGN.md](DESIGN.md)。
+**M1 核心引擎已完成（CLI 形态，2026-08-11）**，设计与决策见 [DESIGN.md](DESIGN.md)。
 
 - 心理学研究依据：大五人格、自我决定论、依恋理论、叙事认同、LLM 心理测量学实证
 - 架构决策：程序层状态机控制（终止条件确定性判定）、LLM 仅承担提问/提取/报告三职责
 - 对话流程源自 [SYSTEM_PROMPT.md](SYSTEM_PROMPT.md)（五维交叉采集 → 终止判定 → 画像确认 → 六段式报告）
+- [PORTABLE.md](PORTABLE.md)：便携版引导师 prompt——无法本地构建或手机端使用时，全文复制给任意大模型即可用
 
 ## 目录
 
 ```
 IDEA.md          项目意图
 SYSTEM_PROMPT.md 对话引导师角色定义（心理学流程原稿）
+PORTABLE.md      便携版 prompt（网页端/手机端直接取用）
 DESIGN.md        完整设计方案（研究依据/架构/接口契约/里程碑/验收标准）
+cli.py           M1 CLI 入口：python cli.py 开始访谈
+portraitist/     引擎包（状态机/证据库/LLM 网关/报告校验）
+tests/           单测（终止判定/调度/报告校验/mock 全流程）
+scripts/simulate_user.py  模拟用户验收脚本（LLM 扮演受访者跑全流程）
+config.example.yaml  配置模板（复制为 config.yaml 填写）
 ```
 
 ## 使用
 
-尚未实现。设计完成后按 DESIGN.md 里程碑推进（M1 核心引擎 → M2 报告质量 → M3 UI → M4 隐私/危机边界）。
+```bash
+pip install -r requirements.txt
+cp config.example.yaml config.yaml   # 填入 API key，或 backend: local 连 LM Studio
+python cli.py                        # 开始访谈
+python -m pytest tests/              # 运行测试
+python scripts/simulate_user.py --template extravert   # 模拟用户验收
+```
+
+M1 已完成；后续里程碑：M2 报告质量打磨 → M3 UI（fork NextChat 瘦身）→ M4 隐私/危机边界。

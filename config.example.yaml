@@ -1,0 +1,23 @@
+# Portraitist 配置模板 — 复制为 config.yaml 后填写（config.yaml 不入库）
+backend: remote            # remote（默认）| local（LM Studio，数据不出机）
+
+# 模型分级：对话轮轻量模型 / 报告强模型
+chat_model: deepseek-chat
+report_model: deepseek-chat
+
+remote:
+  base_url: https://api.deepseek.com/v1
+  api_key: ""              # 填入 API key
+  timeout: 120
+
+local:
+  base_url: http://127.0.0.1:1234/v1   # LM Studio 默认端口
+  api_key: not-needed
+  timeout: 300
+
+# 引擎参数
+max_rounds: 12             # 安全上限（SYSTEM_PROMPT 原文）
+anchors_per_dimension: 2   # 每维度锚点饱和度
+reflection_grace_rounds: 8 # 8 轮内未触发深层反思可跳过（C-4 弹性条件）
+c3_window_rounds: 3        # C-3 信息增益检查窗口
+c3_max_new_anchors: 1      # 窗口内新增锚点上限
