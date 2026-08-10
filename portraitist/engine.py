@@ -319,6 +319,7 @@ class Engine:
                 "ok": checks["ok"],
                 "attempts": attempts_used,
                 "issues": issues_all[:10],
+                "warnings": checks.get("warnings", [])[:10],
             },
         }
         self._transcript("assistant", "报告已生成。" if md else "报告生成失败。", {"kind": "report_done"})

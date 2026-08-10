@@ -38,9 +38,10 @@ def session_with_rounds(n=8):
         {"round": r, "new_anchors": 1, "new_contradictions": 0, "new_narratives": 0, "reflection": False}
         for r in range(1, n + 1)
     ]
-    # 满足证据总量门槛（≥4）
+    # 满足非稀疏场景（锚点 ≥6）
     s["dimensions"]["trait_energy"]["anchors"] = [{"quote": "x", "round": 2}, {"quote": "y", "round": 5}]
     s["dimensions"]["trait_order"]["anchors"] = [{"quote": "z", "round": 3}, {"quote": "w", "round": 6}]
+    s["dimensions"]["trait_emotion"]["anchors"] = [{"quote": "v", "round": 4}, {"quote": "u", "round": 7}]
     return s
 
 
@@ -139,7 +140,7 @@ def test_fabricated_citation_fails():
 
 
 def test_sparse_evidence_warns():
-    """锚点总数过少 → 证据稀疏警告（不依赖引用格式）。"""
+    """锚点总数过少（<6）→ 引用问题降级为 warning，报告可交付。"""
     s = new_session()
     s["rounds"] = 3
     s["round_stats"] = [
@@ -147,6 +148,8 @@ def test_sparse_evidence_warns():
         for r in (1, 2, 3)
     ]
     s["dimensions"]["trait_energy"]["anchors"] = [{"quote": "x", "round": 1}]
-    checks = check_report(GOOD_REPORT, s)
-    assert checks["ok"] is False
-    assert any("证据稀疏" in i for i in checks["issues"])
+    # 稀疏场景：无引用的段落降级为 warning，ok 仍为 True
+    md = GOOD_REPORT.replace("依据：轮次8·「朋友说我其实很坚韧」。", "这个人很有韧性。")
+    checks = check_report(md, s)
+    assert checks["ok"] is True, checks["issues"]
+    assert any("无引用" in w for w in checks["warnings"])
