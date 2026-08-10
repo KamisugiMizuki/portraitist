@@ -30,8 +30,8 @@ let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
 
 const isApp = getClientConfig()?.buildMode === "export";
 
-// portraitist fork：默认直连本地 FastAPI 后端（OpenAI 兼容口）
-const DEFAULT_OPENAI_URL = "http://127.0.0.1:8000/v1";
+// portraitist fork：默认直连本地 FastAPI 后端（OpenAI 兼容口；不含 /v1，NextChat 自行拼接）
+const DEFAULT_OPENAI_URL = "http://127.0.0.1:8000";
 
 const DEFAULT_GOOGLE_URL = isApp ? GEMINI_BASE_URL : ApiPath.Google;
 

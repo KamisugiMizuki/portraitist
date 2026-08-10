@@ -99,9 +99,8 @@ export class ChatGPTApi implements LLMApi {
     }
 
     if (baseUrl.length === 0) {
-      const isApp = !!getClientConfig()?.isApp;
-      const apiPath = isAzure ? ApiPath.Azure : ApiPath.OpenAI;
-      baseUrl = isApp ? OPENAI_BASE_URL : apiPath;
+      // portraitist fork：默认直连本地 FastAPI 后端（OpenAI 兼容口；不含 /v1）
+      baseUrl = "http://127.0.0.1:8000";
     }
 
     if (baseUrl.endsWith("/")) {
