@@ -55,6 +55,8 @@ class Engine:
         self._followups = {}
         # 最近 probe 过的维度（防连续选中同一维度，避免"绕圈"感）
         self._recent_probes = []
+        # 上一轮是否为强制澄清轮（程序层澄清兜底用）
+        self._last_was_clarify_forced = False
         # 上一轮引导师提问文本（提取器需要知道用户在回答什么问题）
         self._last_question = ""
         # 每轮合并统计（C-3 输入）
@@ -107,6 +109,8 @@ class Engine:
         self.session["rounds"] += 1
         round_no = self.session["rounds"]
         self._transcript("user", user_reply)
+        was_clarify_forced = self._last_was_clarify_forced
+        self._last_was_clarify_forced = False
 
         # 危机关键词层（提取器之外的双保险）
         if any(kw in user_reply for kw in
@@ -143,6 +147,21 @@ class Engine:
         )
         refresh_saturation(self.session, self.anchors_per_dim)
 
+        # 程序层澄清兜底（不赌提取器）：澄清轮回答含整合信号词但提取器未闭环 → 确定性闭环
+        if was_clarify_forced:
+            unresolved = unresolved_contradictions(self.session)
+            if unresolved and any(
+                kw in user_reply for kw in
+                ["不冲突", "不矛盾", "并不矛盾", "其实都", "分情况", "得分时候",
+                 "两码事", "一回事", "并不排斥", "并不影响", "其实不是"]
+            ):
+                target = unresolved[0]
+                target["resolved"] = True
+                target["resolution"] = user_reply[:80]
+                target["resolution_round"] = round_no
+                target["auto_resolved"] = True
+                self._transcript("system", "clarify_auto_resolved（程序层兜底）")
+
         # 3. 危机（提取器标注）
         if stats["crisis"]:
             self._transcript("assistant", CRISIS_RESPONSE, {"kind": "crisis"})
@@ -157,6 +176,7 @@ class Engine:
                 # 结尾强制澄清：先解决矛盾再进确认（澄清轮在上限外宽容，最多 max_clarify_rounds 轮）
                 self._clarify_rounds += 1
                 self._followups.clear()
+                self._last_was_clarify_forced = True
                 text = self._ask_clarify(unresolved[0])
                 self._transcript("assistant", text, {"kind": "clarify_forced"})
                 self.session["termination"] = {
@@ -194,6 +214,7 @@ class Engine:
         kind, payload = self._pick_next()
         if kind == "clarify":
             self._followups.clear()
+            self._last_was_clarify_forced = True
             return self._ask_clarify(payload)
         # 追问判定：本轮无新锚点且该维度仍有提问空间
         dim = payload

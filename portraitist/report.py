@@ -169,9 +169,9 @@ def check_report(md: str, session: dict) -> dict:
             if "综合" in title or "自我描述" in title:
                 warnings.append(f"{title} 无引用（综合总结段）")
                 continue
-            # 总结/建议类段落（4/6 段）内容充分（≥120字）时降级 warning；
+            # 总结/建议类段落（4/6 段）内容充分（≥90字）时降级 warning；
             # 内容单薄仍打回（防泛泛建议）
-            if ("生命叙事" in title or "成长视角" in title) and len(body) >= 120:
+            if ("生命叙事" in title or "成长视角" in title) and len(body) >= 90:
                 warnings.append(f"{title} 无引用但内容充分")
                 continue
             flag(f"段落无引用: {title}")

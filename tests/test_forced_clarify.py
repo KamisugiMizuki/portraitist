@@ -157,3 +157,36 @@ def test_unmatched_resolved_dropped():
     stats = merge_extraction(session, 5, ext)
     assert len(session["contradictions"]) == 1
     assert stats["dropped"] == 1
+
+
+def test_programmatic_clarify_fallback():
+    """澄清轮回答含整合信号词且提取器未闭环 → 程序层确定性闭环。"""
+    # 第 1 轮：产生矛盾；第 2 轮 cap 触发 → clarify_forced；第 3 轮：回答含"不冲突"
+    script = [empty_extraction() for _ in range(3)]
+    script[0]["contradictions"] = [{"resolved": False, "b_quote": "喜欢独处",
+                                    "conflicts_with": "怕被边缘化", "hint": ""}]
+    # 提取器第 3 轮输出空 contradictions（未识别澄清）
+    e = make_engine(script, max_rounds=2, max_clarify=3)
+    e.first_question()
+    e.run_round("（回复）")
+    r2 = e.run_round("（回复）")
+    assert r2["note"] == "clarify_forced"
+    r3 = e.run_round("其实不冲突，因为独处是我充电的方式，但我也需要被群体接纳。")
+    assert e.session["contradictions"][0]["resolved"] is True
+    assert e.session["contradictions"][0].get("auto_resolved") is True
+    assert r3["state"] == "confirming"
+
+
+def test_programmatic_clarify_requires_signal_word():
+    """澄清轮回答无整合信号词 → 不自动闭环（防误判）。"""
+    script = [empty_extraction() for _ in range(3)]
+    script[0]["contradictions"] = [{"resolved": False, "b_quote": "喜欢独处",
+                                    "conflicts_with": "怕被边缘化", "hint": ""}]
+    e = make_engine(script, max_rounds=2, max_clarify=3)
+    e.first_question()
+    e.run_round("（回复）")
+    e.run_round("（回复）")
+    r3 = e.run_round("我也说不清楚，反正就是那样吧。")
+    assert e.session["contradictions"][0]["resolved"] is False
+    # 无信号词 → 继续强制澄清
+    assert r3["note"] == "clarify_forced"
