@@ -20,7 +20,7 @@ BLACKLIST_TERMS = [
     "进食障碍", "失眠障碍", "惊恐发作", "社交恐惧症", "广场恐惧",
     "躯体化障碍", "解离", "成瘾", "妄想", "幻觉", "躁郁",
     # 类型标签（非诊断但属于贴标签）
-    "九型人格", "DISC", "性格色彩", "血型决定", "星座决定",
+    "MBTI", "九型人格", "DISC", "性格色彩", "血型决定", "星座决定",
     "INFP", "INTJ", "ENTP", "ENFP", "INFJ", "ISTJ", "INTP", "ISFJ",
     "ENTJ", "ESTP", "ESFP", "ISTP", "ESTJ", "ESFJ", "ISFP", "ENFJ",
 ]
@@ -68,9 +68,10 @@ SECTION_START_RE = re.compile(
 
 def _quote_matches(quote_fragment: str, round_quotes: list[str]) -> bool:
     """引用片段与证据库原话的宽松匹配（模型可能节选/润色/省略号拼接）。"""
-    q = re.sub(r"\s+", "", quote_fragment).strip("，。；、！？…「」【】·•,.;:!?~ ")
+    q = re.sub(r"\s+", "", quote_fragment)
     # 旧格式残留：'原话'/'原话片段'前缀（prompt 格式说明被模型输出）
     q = re.sub(r"^(?:原话片段|原话)", "", q)
+    q = q.strip("，。；、！？…「」【】·•,.;:!?~ ")
     if len(q) < 8:
         return True  # 太短无法判断，宽容
     # 省略号拼接：分段匹配（"…"分隔的多个原话片段）
