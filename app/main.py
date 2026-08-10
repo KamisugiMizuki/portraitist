@@ -69,30 +69,13 @@ class SessionStore:
     def _engine(self, session: dict) -> Engine:
         return Engine(session, self.gateway, self._load_config(), SESSIONS_DIR)
 
-    def create(self) -> Engine:
+    def create(self) -> tuple[Engine, str]:
+        """新建会话：引擎开场白已由 first_question 落盘，返回 (engine, 开场白)。"""
         engine = self._engine(new_session())
         text = engine.first_question()
-        engine._transcript("assistant", text, {"kind": "invitation"})
-        engine._save()
         self._engines[engine.session["session_id"]] = engine
-        return engine
+        return engine, text
 
-    @staticmethod
-    def last_assistant_text(session_id: str) -> str:
-        """从 transcript 文件读最后一条 assistant 消息（开场邀请/最近回复）。"""
-        tpath = os.path.join(SESSIONS_DIR, session_id, "transcript.jsonl")
-        if not os.path.exists(tpath):
-            return ""
-        for line in reversed(open(tpath, encoding="utf-8").readlines()):
-            if not line.strip():
-                continue
-            try:
-                e = json.loads(line)
-            except Exception:
-                continue
-            if e.get("role") == "assistant":
-                return e.get("content", "")
-        return ""
     def get(self, session_id: str) -> Engine:
         if session_id in self._engines:
             return self._engines[session_id]
@@ -138,6 +121,15 @@ class SessionStore:
 STORE = SessionStore()
 
 
+def _step_engine(engine: Engine, message: str) -> dict:
+    """引擎步进：按会话状态分发（confirming 走确认，否则正常轮；completed 拒绝）。"""
+    if engine.session.get("status") == "completed":
+        raise HTTPException(409, "会话已完成，无法继续对话")
+    if engine.session.get("status") == "confirming":
+        return engine.handle_confirmation(message)
+    return engine.run_round(message)
+
+
 def _public_status(engine: Engine) -> dict:
     """UI 徽章数据（DESIGN §6.1：active/confirming/completed + 覆盖进度）。"""
     s = engine.session
@@ -145,7 +137,7 @@ def _public_status(engine: Engine) -> dict:
     for dim_id, info in s["dimensions"].items():
         dims.append({
             "id": dim_id,
-            "name": info.get("name", dim_id),
+            "name": dim_id,
             "anchors": len(info.get("anchors", [])),
             "saturated": bool(info.get("saturated")),
         })
@@ -191,11 +183,11 @@ def list_sessions():
 
 @app.post("/api/sessions", response_model=SessionCreateResponse)
 def create_session():
-    engine = STORE.create()
+    engine, text = STORE.create()
     return {
         "session_id": engine.session["session_id"],
         "status": engine.session["status"],
-        "text": STORE.last_assistant_text(engine.session["session_id"]),
+        "text": text,
     }
 
 
@@ -230,12 +222,7 @@ def delete_session(session_id: str):
 @app.post("/api/sessions/{session_id}/chat", response_model=ChatResponse)
 def chat(session_id: str, req: ChatRequest):
     engine = STORE.get(session_id)
-    if engine.session.get("status") == "completed":
-        raise HTTPException(409, "会话已完成，无法继续对话")
-    if engine.session.get("status") == "confirming":
-        result = engine.handle_confirmation(req.message)
-    else:
-        result = engine.run_round(req.message)
+    result = _step_engine(engine, req.message)
     return {
         "session_id": session_id,
         "status": result["state"],
@@ -314,16 +301,14 @@ def chat_completions(req: OpenAIRequest):
             text = "本会话已生成报告，请到报告页查看。"
             result = {"state": "completed", "text": text, "note": "completed"}
         else:
-            result = engine.handle_confirmation(user_msgs[-1]) if engine.session.get("status") == "confirming" else engine.run_round(user_msgs[-1])
+            result = _step_engine(engine, user_msgs[-1])
             text = result["text"]
     else:
-        engine = STORE.create()
+        engine, _ = STORE.create()
         result = engine.run_round(user_msgs[-1])
         text = result["text"]
         session_id = engine.session["session_id"]
 
-    note = result.get("note", "")
-    _ = note
     payload = {
         "id": f"chatcmpl-{session_id[:12]}",
         "object": "chat.completion",

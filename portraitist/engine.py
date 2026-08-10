@@ -12,8 +12,9 @@ import os
 from datetime import datetime, timezone
 
 from . import prompts
-from .dimensions import DIMENSIONS, DIMENSION_IDS
+from .dimensions import DIMENSIONS
 from .evidence import (
+    CRISIS_KEYWORDS,
     anchor_count,
     anchor_summary,
     append_transcript,
@@ -80,16 +81,16 @@ class Engine:
         contradictions = unresolved_contradictions(self.session)
         if contradictions:
             return ("clarify", contradictions[0])
-        counts = [(d["id"], anchor_count(self.session, d["id"])) for d in DIMENSIONS]
+        counts = [(d, anchor_count(self.session, d["id"])) for d in DIMENSIONS]
         # 防连续：排除最近 2 轮 probe 过的维度；若排除后无欠饱和候选则全部纳入
         recent = self._recent_probes[-2:]
-        candidates = [c for c in counts if c[0] not in recent]
+        candidates = [c for c in counts if c[0]["id"] not in recent]
         if not candidates or all(c[1] >= self.anchors_per_dim for c in candidates):
             candidates = counts
         candidates.sort(key=lambda x: x[1])
-        dim_id = candidates[0][0]
-        self._recent_probes.append(dim_id)
-        return ("probe", next(d for d in DIMENSIONS if d["id"] == dim_id))
+        dim = candidates[0][0]
+        self._recent_probes.append(dim["id"])
+        return ("probe", dim)
 
     # ---------- 主流程 ----------
 
@@ -112,9 +113,8 @@ class Engine:
         was_clarify_forced = self._last_was_clarify_forced
         self._last_was_clarify_forced = False
 
-        # 危机关键词层（提取器之外的双保险）
-        if any(kw in user_reply for kw in
-               ["自杀", "自残", "不想活", "活不下去", "结束生命", "伤害自己", "轻生"]):
+        # 危机关键词层（提取器之外的双保险，复用 evidence 的完整词表）
+        if any(kw in user_reply for kw in CRISIS_KEYWORDS):
             self.session["crisis"]["triggered"] = True
             self.session["crisis"]["round"] = round_no
             self._transcript("assistant", CRISIS_RESPONSE, {"kind": "crisis"})
@@ -172,6 +172,11 @@ class Engine:
         term = self._evaluate_termination(round_no)
         if term["done"]:
             unresolved = unresolved_contradictions(self.session)
+            term_fields = {
+                "c1": term["c1"], "c2": term["c2"], "c3": term["c3"],
+                "c4": term["c4"], "c4_skipped": term["c4_skipped"],
+                "reached_cap": term["reached_cap"],
+            }
             if unresolved and self._clarify_rounds < self.max_clarify_rounds:
                 # 结尾强制澄清：先解决矛盾再进确认（澄清轮在上限外宽容，最多 max_clarify_rounds 轮）
                 self._clarify_rounds += 1
@@ -180,18 +185,11 @@ class Engine:
                 text = self._ask_clarify(unresolved[0])
                 self._transcript("assistant", text, {"kind": "clarify_forced"})
                 self.session["termination"] = {
-                    "c1": term["c1"], "c2": term["c2"], "c3": term["c3"],
-                    "c4": term["c4"], "c4_skipped": term["c4_skipped"],
-                    "reached_cap": term["reached_cap"],
-                    "notes": term["notes"] + "; 强制澄清阶段（未完成）",
+                    **term_fields, "notes": term["notes"] + "; 强制澄清阶段（未完成）",
                 }
                 self._save()
                 return {"text": text, "state": "active", "note": "clarify_forced"}
-            self.session["termination"] = {
-                "c1": term["c1"], "c2": term["c2"], "c3": term["c3"],
-                "c4": term["c4"], "c4_skipped": term["c4_skipped"],
-                "reached_cap": term["reached_cap"], "notes": term["notes"],
-            }
+            self.session["termination"] = {**term_fields, "notes": term["notes"]}
             self.session["status"] = "confirming"
             self.session["confirmation"]["requested"] = True
             confirm_text = self._ask_confirm()

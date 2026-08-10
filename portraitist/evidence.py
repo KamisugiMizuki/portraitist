@@ -51,14 +51,10 @@ CRISIS_KEYWORDS = [
 ]
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 def new_session() -> dict:
     return {
         "session_id": uuid.uuid4().hex[:12],
-        "created_at": _now(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "rounds": 0,
         "status": "active",  # active | confirming | completed
         "dimensions": {d: {"anchors": [], "saturated": False} for d in DIMENSION_IDS},

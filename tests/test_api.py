@@ -173,7 +173,7 @@ def test_report_endpoint():
     client = TestClient(main.app)
 
     # 用引擎直跑一个 completed 会话（绕过真实 LLM 对话：直接构造）
-    engine = main.STORE.create()
+    engine, _ = main.STORE.create()
     sid = engine.session["session_id"]
     # 注入 3 轮锚点使其 cap 完成
     for rnd in range(1, 4):
@@ -198,6 +198,6 @@ def test_report_endpoint():
     assert data["checks"]["ok"] is True
 
     # 未完成会话的报告 → 404
-    engine2 = main.STORE.create()
+    engine2, _ = main.STORE.create()
     r = client.get(f"/api/sessions/{engine2.session['session_id']}/report")
     assert r.status_code == 404
