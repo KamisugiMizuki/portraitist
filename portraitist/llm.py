@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
 import requests
 
@@ -88,16 +89,28 @@ class LLMGateway:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        try:
-            r = requests.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=self.timeout,
-            )
-            r.raise_for_status()
-        except requests.RequestException as e:
-            raise LLMError(f"LLM 请求失败 ({self.backend}): {e}") from e
+
+        # 网络层瞬断（SSL EOF/超时）与 5xx 重试；4xx 不重试
+        last_err = None
+        for attempt in range(3):
+            try:
+                r = requests.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout,
+                )
+                r.raise_for_status()
+                break
+            except requests.RequestException as e:
+                last_err = e
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                if status is not None and 400 <= status < 500 and status != 429:
+                    raise LLMError(f"LLM 请求失败 ({self.backend}): HTTP {status} {e}") from e
+                if attempt < 2:
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                raise LLMError(f"LLM 请求失败 ({self.backend}, 重试3次): {last_err}") from last_err
         data = r.json()
         try:
             return data["choices"][0]["message"]["content"].strip()

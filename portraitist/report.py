@@ -25,23 +25,24 @@ BARNUM_PATTERNS = [
     re.compile(r"既[^，。；、]{0,10}又[^，。；、]{0,10}"),
 ]
 
-# 六段结构检查：兼容 "1. 核心特质图谱" 与 "## 一、核心特质图谱" 两种格式
+# 六段结构检查：兼容 "1. " / "## 一、" / "**1. **" 三种标题格式
+_TITLE_PREFIX = r"^\s*(?:\*\*|#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*"
 SECTION_PATTERNS = [
-    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*核心特质图谱", re.M),
-    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*深层动力引擎", re.M),
-    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*关系剧本", re.M),
-    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*生命叙事", re.M),
-    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*(?:综合真实自我描述|✨)", re.M),
-    re.compile(r"^\s*(?:#{1,3}\s*)?(?:[1-6][.、]|[一二三四五六][、.])\s*成长视角", re.M),
+    re.compile(_TITLE_PREFIX + r"核心特质图谱", re.M),
+    re.compile(_TITLE_PREFIX + r"深层动力引擎", re.M),
+    re.compile(_TITLE_PREFIX + r"关系剧本", re.M),
+    re.compile(_TITLE_PREFIX + r"生命叙事", re.M),
+    re.compile(_TITLE_PREFIX + r"综合(?:真实|自我)?(?:自我)?描述|综合画像|✨", re.M),
+    re.compile(_TITLE_PREFIX + r"成长视角", re.M),
     re.compile(r"非诊断声明|不具备临床诊断"),
 ]
 
 CITATION_RE = re.compile(r"依据[：:]\s*轮次?\s*(\d+)")
 CITATION_ALT_RE = re.compile(r"〔轮次?\s*(\d+)〕|\[轮\s*(\d+)\]")
 
-# 段起始：数字标题（1. / 一、）或 🧠 头，可带 markdown ## 前缀
+# 段起始：数字标题（1. / 一、/ **1.**）或 🧠 头，可带 markdown ## 或加粗前缀
 SECTION_START_RE = re.compile(
-    r"^\s*(?:#{1,3}\s*)?(?:[1-9][.、]|[一二三四五六七八九十]+[、.])\s*\S"
+    r"^\s*(?:\*\*|#{1,3}\s*)?(?:[1-9][.、]|[一二三四五六七八九十]+[、.])\s*\S"
 )
 
 

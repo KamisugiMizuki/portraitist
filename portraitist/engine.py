@@ -290,10 +290,14 @@ class Engine:
         attempts_used = 0
         for attempt in range(3):
             attempts_used = attempt + 1
+            feedback = ""
+            if issues_all:
+                # 带反馈重试：把校验问题反馈给模型，针对性修正
+                feedback = "\n".join(f"- {i}" for i in issues_all[:8])
             try:
                 md = self.gateway.chat(
                     prompts.REPORT_SYSTEM,
-                    prompts.report_prompt(evidence),
+                    prompts.report_prompt(evidence, feedback),
                     model=self.gateway.report_model,
                     temperature=0.6,
                     max_tokens=8000,

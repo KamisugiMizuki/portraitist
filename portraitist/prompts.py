@@ -114,7 +114,13 @@ REPORT_SYSTEM = """你是一位心理画像报告撰写者。输入是访谈的�
 5. 输出完整报告，不要省略章节。"""
 
 
-def report_prompt(evidence: dict) -> str:
+def report_prompt(evidence: dict, feedback: str = "") -> str:
+    feedback_block = (
+        f"\n\n⚠️ 上一版报告未通过质量校验，存在以下问题（务必逐条修正后重新输出完整报告）：\n"
+        f"{feedback}\n"
+        if feedback
+        else ""
+    )
     return (
         f"请基于以下访谈证据生成完整报告。证据中每条锚点都带轮次，引用时使用「依据：轮次N」格式。\n\n"
         f"{json.dumps(evidence, ensure_ascii=False)}\n\n"
@@ -127,4 +133,5 @@ def report_prompt(evidence: dict) -> str:
         f"6. 成长视角与盲点——未察觉的内在资源/可能限制发展的认知惯性及调整建议\n"
         f"开头先输出非诊断声明：「本分析基于对话模型推演，旨在促进自我觉察，不具备临床诊断或职业测评效度，请保持批判性视角参考。」\n"
         f"若证据中的 reflection.triggered 为 false，在报告末尾注明「深层反思未充分触发」。"
+        f"{feedback_block}"
     )
