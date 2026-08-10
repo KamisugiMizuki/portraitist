@@ -1,0 +1,55 @@
+/* eslint-disable @next/next/no-page-custom-font */
+import "./styles/globals.scss";
+import "./styles/markdown.scss";
+import "./styles/highlight.scss";
+import { getClientConfig } from "./config/client";
+import type { Metadata, Viewport } from "next";
+import { getServerSideConfig } from "./config/server";
+
+export const metadata: Metadata = {
+  title: "Portraitist",
+  description: "苏格拉底式多轮对话性格画像分析（自我觉察，非诊断）",
+  appleWebApp: {
+    title: "Portraitist",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#151515" },
+  ],
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const serverConfig = getServerSideConfig();
+
+  return (
+    <html lang="en">
+      <head>
+        <meta name="config" content={JSON.stringify(getClientConfig())} />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <link
+          rel="manifest"
+          href="/site.webmanifest"
+          crossOrigin="use-credentials"
+        ></link>
+        <script src="/serviceWorkerRegister.js" defer></script>
+      </head>
+      <body>
+        {children}
+      </body>
+    </html>
+  );
+}
