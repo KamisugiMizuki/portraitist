@@ -66,18 +66,8 @@ SECTION_START_RE = re.compile(
 )
 
 
-def _quote_matches(quote_fragment: str, round_quotes: list[str]) -> bool:
-    """引用片段与证据库原话的宽松匹配（模型可能节选/润色/省略号拼接）。"""
-    q = re.sub(r"\s+", "", quote_fragment)
-    # 旧格式残留：'原话'/'原话片段'前缀（prompt 格式说明被模型输出）
-    q = re.sub(r"^(?:原话片段|原话)", "", q)
-    q = q.strip("，。；、！？…「」【】·•,.;:!?~ ")
-    if len(q) < 8:
-        return True  # 太短无法判断，宽容
-    # 省略号拼接：分段匹配（"…"分隔的多个原话片段）
-    parts = [p for p in re.split(r"…+|\.{3,}|\.{2,}", q) if len(p) >= 4]
-    if len(parts) > 1:
-        return all(_quote_matches(p, round_quotes) for p in parts)
+def _contains_match(q: str, round_quotes: list[str]) -> bool:
+    """严格包含匹配（不分段、不宽容）：完整/节选/前后缀。"""
     for aq in round_quotes:
         a = re.sub(r"\s+", "", aq)
         if not a:
@@ -88,6 +78,21 @@ def _quote_matches(quote_fragment: str, round_quotes: list[str]) -> bool:
         if len(q) >= 12 and (q[:10] in a or q[-10:] in a):
             return True
     return False
+
+
+def _quote_matches(quote_fragment: str, round_quotes: list[str]) -> bool:
+    """引用片段与证据库原话的宽松匹配（模型可能节选/润色/省略号拼接）。"""
+    q = re.sub(r"\s+", "", quote_fragment)
+    # 旧格式残留：'原话'/'原话片段'前缀（prompt 格式说明被模型输出）
+    q = re.sub(r"^(?:原话片段|原话)", "", q)
+    q = q.strip("，。；、！？…「」【】·•,.;:!?~ ")
+    if len(q) < 8:
+        return True  # 独立短引用无法判断，宽容
+    # 省略号拼接：分段严格匹配（每段都必须是该轮原话，短段不宽容）
+    parts = [p for p in re.split(r"…+|\.{3,}|\.{2,}", q) if len(p) >= 4]
+    if len(parts) > 1:
+        return all(_contains_match(p, round_quotes) for p in parts)
+    return _contains_match(q, round_quotes)
 
 
 def _check_confidence_labels(body: str) -> list[str]:

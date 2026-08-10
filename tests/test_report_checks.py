@@ -41,6 +41,7 @@ def session_with_rounds(n=8):
     # 满足非稀疏场景（锚点 ≥6）；quotes 与 GOOD_REPORT 引用内容一致（真实性校验）
     s["dimensions"]["trait_energy"]["anchors"] = [
         {"quote": "我周末会去逛美术馆", "round": 2},
+        {"quote": "顺便看个展", "round": 2},
         {"quote": "我不怕跟伴侣吵架", "round": 5},
         {"quote": "朋友说我其实很坚韧", "round": 8},
     ]
@@ -203,3 +204,80 @@ def test_sparse_evidence_warns():
     checks = check_report(md, s)
     assert checks["ok"] is True, checks["issues"]
     assert any("无引用" in w for w in checks["warnings"])
+
+
+# ---- _quote_matches 边界（原 ad-hoc 验证沉淀） ----
+
+def test_quote_ellipsis_join_accepted():
+    """同轮省略号拼接多个原话片段 → 分段严格匹配通过。"""
+    s = session_with_rounds()
+    md = GOOD_REPORT.replace("「我周末会去逛美术馆」", "「我周末会去逛美术馆…顺便看个展」")
+    checks = check_report(md, s)
+    assert checks["ok"] is True, checks["issues"]
+
+
+def test_quote_placeholder_prefix_stripped():
+    """'原话'/'原话片段'占位符前缀（旧 prompt 泄漏）应被剥离。"""
+    s = session_with_rounds()
+    md = GOOD_REPORT.replace("「我周末会去逛美术馆」", "「原话我周末会去逛美术馆」")
+    checks = check_report(md, s)
+    assert checks["ok"] is True, checks["issues"]
+
+
+def test_quote_short_fragment_tolerant():
+    """短片段（<8字）无法判断 → 宽容通过。"""
+    s = session_with_rounds()
+    md = GOOD_REPORT.replace("「我周末会去逛美术馆」", "「美术馆」")
+    checks = check_report(md, s)
+    assert checks["ok"] is True, checks["issues"]
+
+
+def test_quote_cross_round_join_rejected():
+    """省略号拼接跨轮内容（该轮无此原话）→ 拦截。"""
+    s = session_with_rounds()
+    # 轮2锚点是「我周末会去逛美术馆」，「把待办写下来」属于轮3——跨轮拼接应拦
+    md = GOOD_REPORT.replace("「我周末会去逛美术馆」", "「我周末会去逛美术馆…把待办写下来」")
+    # 但轮2 quotes 不含「把待办写下来」，且轮3 的 quote 也不在轮2——应报内容不符
+    checks = check_report(md, s)
+    assert checks["ok"] is False
+    assert any("内容与证据不符" in i for i in checks["issues"])
+
+
+def test_section6_substantial_without_citation_warns():
+    """第 6 段（成长建议）无引用但内容充分（≥120字）→ warning 不阻塞。"""
+    s = session_with_rounds()
+    long_tip = "你拥有一种罕见的把人群联结起来的能力。" * 8
+    md = GOOD_REPORT.replace(
+        "- 内在资源。依据：轮次8·「朋友说我其实很坚韧」。",
+        f"- 内在资源。{long_tip}")
+    checks = check_report(md, s)
+    assert checks["ok"] is True, checks["issues"]
+
+
+def test_section6_thin_without_citation_rejected():
+    """第 6 段无引用且内容单薄 → 拦截（防泛泛建议）。"""
+    s = session_with_rounds()
+    md = GOOD_REPORT.replace(
+        "- 内在资源。依据：轮次8·「朋友说我其实很坚韧」。",
+        "- 内在资源。要更开放一些。")
+    checks = check_report(md, s)
+    assert checks["ok"] is False
+    assert any("无引用" in i for i in checks["issues"])
+
+
+def test_section4_without_narrative_material_warns():
+    """第 4 段（生命叙事）无叙事素材时无引用 → warning。"""
+    s = session_with_rounds()
+    s["narratives"] = []
+    md = GOOD_REPORT.replace(
+        "- 一个不断证明自己的逆袭者。依据：轮次6·「高考失利后我复读了一年」。",
+        "- 一个不断证明自己的逆袭者。")
+    checks = check_report(md, s)
+    assert checks["ok"] is True, checks["issues"]
+
+
+def test_somatization_word_allowed():
+    """'躯体化'是描述性用词（非诊断名）→ 放行。"""
+    md = GOOD_REPORT.replace("安全型", "深刻的躯体化反应")
+    checks = check_report(md, session_with_rounds())
+    assert checks["ok"] is True, checks["issues"]
