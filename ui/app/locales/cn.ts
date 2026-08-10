@@ -631,8 +631,8 @@ const cn = {
     },
   },
   Store: {
-    DefaultTopic: "新的聊天",
-    BotHello: "有什么可以帮你的吗",
+    DefaultTopic: "新的访谈",
+    BotHello: "你好，我是你的心理探索伙伴。先说说你最近的状态吧——最近在想什么、心情怎么样、有没有什么一直萦绕在心头的纠结？想到什么说什么，不用组织语言。",
     Error: "出错了，稍后重试吧",
     Prompt: {
       History: (content: string) => "这是历史聊天总结作为前情提要：" + content,

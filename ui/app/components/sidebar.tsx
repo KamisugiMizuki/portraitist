@@ -8,10 +8,7 @@ import GithubIcon from "../icons/github.svg";
 import ChatGptIcon from "../icons/chatgpt.svg";
 import AddIcon from "../icons/add.svg";
 import DeleteIcon from "../icons/delete.svg";
-import MaskIcon from "../icons/mask.svg";
-import McpIcon from "../icons/mcp.svg";
 import DragIcon from "../icons/drag.svg";
-import DiscoveryIcon from "../icons/discovery.svg";
 
 import Locale from "../locales";
 
@@ -31,13 +28,6 @@ import { isIOS, useMobileScreen } from "../utils";
 import dynamic from "next/dynamic";
 import { Selector, showConfirm } from "./ui-lib";
 import clsx from "clsx";
-import { isMcpEnabled } from "../mcp/actions";
-
-const DISCOVERY = [
-  { name: Locale.Plugin.Name, path: Path.Plugins },
-  { name: "Stable Diffusion", path: Path.Sd },
-  { name: Locale.SearchChat.Page.Title, path: Path.SearchChat },
-];
 
 const ChatList = dynamic(async () => (await import("./chat-list")).ChatList, {
   loading: () => null,
@@ -227,21 +217,9 @@ export function SideBarTail(props: {
 export function SideBar(props: { className?: string }) {
   useHotKey();
   const { onDragStart, shouldNarrow } = useDragSideBar();
-  const [showDiscoverySelector, setshowDiscoverySelector] = useState(false);
   const navigate = useNavigate();
   const config = useAppConfig();
   const chatStore = useChatStore();
-  const [mcpEnabled, setMcpEnabled] = useState(false);
-
-  useEffect(() => {
-    // 检查 MCP 是否启用
-    const checkMcpStatus = async () => {
-      const enabled = await isMcpEnabled();
-      setMcpEnabled(enabled);
-      console.log("[SideBar] MCP enabled:", enabled);
-    };
-    checkMcpStatus();
-  }, []);
 
   return (
     <SideBarContainer
@@ -250,60 +228,14 @@ export function SideBar(props: { className?: string }) {
       {...props}
     >
       <SideBarHeader
-        title="NextChat"
-        subTitle="Build your own AI assistant."
+        title="Portraitist"
+        subTitle="多轮对话性格画像分析"
         logo={<ChatGptIcon />}
         shouldNarrow={shouldNarrow}
       >
         <div className={styles["sidebar-header-bar"]}>
-          <IconButton
-            icon={<MaskIcon />}
-            text={shouldNarrow ? undefined : Locale.Mask.Name}
-            className={styles["sidebar-bar-button"]}
-            onClick={() => {
-              if (config.dontShowMaskSplashScreen !== true) {
-                navigate(Path.NewChat, { state: { fromHome: true } });
-              } else {
-                navigate(Path.Masks, { state: { fromHome: true } });
-              }
-            }}
-            shadow
-          />
-          {mcpEnabled && (
-            <IconButton
-              icon={<McpIcon />}
-              text={shouldNarrow ? undefined : Locale.Mcp.Name}
-              className={styles["sidebar-bar-button"]}
-              onClick={() => {
-                navigate(Path.McpMarket, { state: { fromHome: true } });
-              }}
-              shadow
-            />
-          )}
-          <IconButton
-            icon={<DiscoveryIcon />}
-            text={shouldNarrow ? undefined : Locale.Discovery.Name}
-            className={styles["sidebar-bar-button"]}
-            onClick={() => setshowDiscoverySelector(true)}
-            shadow
-          />
+          {/* portraitist fork：面具/发现/MCP 入口已移除 */}
         </div>
-        {showDiscoverySelector && (
-          <Selector
-            items={[
-              ...DISCOVERY.map((item) => {
-                return {
-                  title: item.name,
-                  value: item.path,
-                };
-              }),
-            ]}
-            onClose={() => setshowDiscoverySelector(false)}
-            onSelection={(s) => {
-              navigate(s[0], { state: { fromHome: true } });
-            }}
-          />
-        )}
       </SideBarHeader>
       <SideBarBody
         onClick={(e) => {
