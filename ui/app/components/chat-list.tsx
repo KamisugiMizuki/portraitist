@@ -13,7 +13,7 @@ import { useChatStore } from "../store";
 import Locale from "../locales";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Path } from "../constant";
-import { MaskAvatar } from "./mask";
+import { Avatar } from "./emoji";
 import { Mask } from "../store/mask";
 import { useRef, useEffect, useState } from "react";
 import { showConfirm } from "./ui-lib";
@@ -77,10 +77,7 @@ export function ChatItem(props: {
           {props.narrow ? (
             <div className={styles["chat-item-narrow"]}>
               <div className={clsx(styles["chat-item-avatar"], "no-dark")}>
-                <MaskAvatar
-                  avatar={props.mask.avatar}
-                  model={props.mask.modelConfig.model}
-                />
+                <Avatar avatar={props.mask.avatar} />
               </div>
               <div className={styles["chat-item-narrow-count"]}>
                 {props.count}

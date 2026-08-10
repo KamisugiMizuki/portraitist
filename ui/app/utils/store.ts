@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { combine, persist, createJSONStorage } from "zustand/middleware";
 import { Updater } from "../typing";
 import { deepClone } from "./clone";
-import { indexedDBStorage } from "@/app/utils/indexedDB-storage";
+import { safeLocalStorage } from "@/app/utils";
 
 type SecondParam<T> = T extends (
   _f: infer _F,
@@ -34,7 +34,8 @@ export function createPersistStore<T extends object, M>(
   ) => M,
   persistOptions: SecondParam<typeof persist<T & M & MakeUpdater<T>>>,
 ) {
-  persistOptions.storage = createJSONStorage(() => indexedDBStorage);
+  // portraitist fork：localStorage 持久化（访谈数据量小，localStorage 稳定可靠，刷新/重开保留）
+  persistOptions.storage = createJSONStorage(() => safeLocalStorage());
   const oldOonRehydrateStorage = persistOptions?.onRehydrateStorage;
   persistOptions.onRehydrateStorage = (state) => {
     oldOonRehydrateStorage?.(state);

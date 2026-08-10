@@ -26,7 +26,6 @@ import ShareIcon from "../icons/share.svg";
 
 import DownloadIcon from "../icons/download.svg";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageSelector, useMessageSelector } from "./message-selector";
 import { Avatar } from "./emoji";
 import dynamic from "next/dynamic";
 import NextImage from "next/image";
@@ -38,7 +37,6 @@ import { EXPORT_MESSAGE_CLASS_NAME } from "../constant";
 import { getClientConfig } from "../config/client";
 import { type ClientApi, getClientApi } from "../client/api";
 import { getMessageTextContent } from "../utils";
-import { MaskAvatar } from "./mask";
 import clsx from "clsx";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
@@ -166,20 +164,14 @@ export function MessageExporter() {
 
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
-  const { selection, updateSelection } = useMessageSelector();
   const selectedMessages = useMemo(() => {
     const ret: ChatMessage[] = [];
     if (exportConfig.includeContext) {
       ret.push(...session.mask.context);
     }
-    ret.push(...session.messages.filter((m) => selection.has(m.id)));
+    ret.push(...session.messages);
     return ret;
-  }, [
-    exportConfig.includeContext,
-    session.messages,
-    session.mask.context,
-    selection,
-  ]);
+  }, [exportConfig.includeContext, session.messages, session.mask.context]);
   function preview() {
     if (exportConfig.format === "text") {
       return (
@@ -242,11 +234,6 @@ export function MessageExporter() {
             ></input>
           </ListItem>
         </List>
-        <MessageSelector
-          selection={selection}
-          updateSelection={updateSelection}
-          defaultSelectAll
-        />
       </div>
       {currentStep.value === "preview" && (
         <div className={styles["message-exporter-body"]}>{preview()}</div>
@@ -524,14 +511,14 @@ export function ImagePreviewer(props: {
           </div>
 
           <div>
-            <div className={styles["main-title"]}>NextChat</div>
+            <div className={styles["main-title"]}>Portraitist</div>
             <div className={styles["sub-title"]}>
-              github.com/ChatGPTNextWeb/ChatGPT-Next-Web
+              portraitist：苏格拉底式多轮对话性格画像分析
             </div>
             <div className={styles["icons"]}>
-              <MaskAvatar avatar={config.avatar} />
+              <Avatar avatar={config.avatar} />
               <span className={styles["icon-space"]}>&</span>
-              <MaskAvatar
+              <Avatar
                 avatar={mask.avatar}
                 model={session.mask.modelConfig.model}
               />
@@ -565,7 +552,7 @@ export function ImagePreviewer(props: {
                 {m.role === "user" ? (
                   <Avatar avatar={config.avatar}></Avatar>
                 ) : (
-                  <MaskAvatar
+                  <Avatar
                     avatar={session.mask.avatar}
                     model={m.model || session.mask.modelConfig.model}
                   />
