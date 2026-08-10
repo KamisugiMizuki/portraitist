@@ -35,11 +35,12 @@ config.example.yaml  配置模板（复制为 config.yaml 填写）
 ## 使用
 
 ```bash
-pip install -r requirements.txt
-cp config.example.yaml config.yaml   # 填入 API key，或 backend: local 连 LM Studio
-python cli.py                        # 开始访谈
-python -m pytest tests/              # 运行测试
-python scripts/simulate_user.py --template extravert   # 模拟用户验收
+uv venv .venv                            # 独立 venv（每个项目单独建，防环境污染）
+.venv/Scripts/python.exe -m pip install -r requirements.txt pytest
+cp config.example.yaml config.yaml       # 填入 API key，或 backend: local 连 LM Studio
+.venv/Scripts/python.exe cli.py          # 开始访谈
+.venv/Scripts/python.exe -m pytest tests/            # 运行测试
+.venv/Scripts/python.exe scripts/simulate_user.py --template extravert  # 模拟用户验收
 ```
 
 M1 已完成；后续里程碑：M2 报告质量打磨 → M3 UI（fork NextChat 瘦身）→ M4 隐私/危机边界。
