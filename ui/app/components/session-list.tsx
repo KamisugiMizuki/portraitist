@@ -12,6 +12,7 @@ export interface BackendSession {
   rounds: number;
   created_at: string;
   title: string;
+  crisis_flagged?: boolean;
   has_report: boolean;
   report_ok: boolean;
 }
@@ -116,6 +117,9 @@ export function SessionList(props: { narrow?: boolean }) {
           </div>
           <div className={styles.itemMeta}>
             {STATUS_TEXT[s.status] ?? s.status} · {s.rounds} 轮
+            {s.crisis_flagged && (
+              <span className={styles.crisis}>⚠️ 危机</span>
+            )}
             {s.has_report && (
               <span
                 className={styles.report}

@@ -375,6 +375,13 @@ class Engine:
             issues_all.extend(checks["issues"])
 
         report_path = self._save_report(md) if md else ""
+        # 危机标记：报告末尾追加求助指引 + 定位声明（校验后追加，不参与六段校验）
+        if md and self.session.get("crisis", {}).get("triggered"):
+            md = md.rstrip() + "\n\n---\n\n**危机提示**：本访谈中你曾表达过强烈的痛苦情绪。" \
+                "这份报告不对此内容做任何分析。如果你现在仍感到难以承受，请拨打" \
+                "全国24小时心理援助热线 **400-161-9995**，或联系当地医院心理科/精神卫生中心。" \
+                "本产品不提供危机干预，仅提供求助指引。\n"
+            report_path = self._save_report(md)
         self.session["report"] = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "path": os.path.relpath(report_path, self.sessions_dir) if report_path else "",

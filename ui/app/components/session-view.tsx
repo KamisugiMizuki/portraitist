@@ -20,6 +20,7 @@ interface SessionDetail {
   status: string;
   rounds: number;
   transcript: TranscriptMsg[];
+  crisis?: { triggered?: boolean; round?: number };
   report: { path?: string; checks?: { ok?: boolean } } | null;
   coverage?: {
     saturated_count?: number;
@@ -80,6 +81,11 @@ export function SessionView() {
             <span className={`${styles.badge} ${styles[detail.status]}`}>
               {detail.status}
             </span>
+            {detail.crisis?.triggered && (
+              <span className={`${styles.badge} ${styles.crisis}`}>
+                ⚠️ 危机求助已提示
+              </span>
+            )}
           </div>
           <div className={styles.sub}>
             {detail.rounds} 轮 · 维度饱和 {dimCount}/{dimTotal}
@@ -133,6 +139,11 @@ export function SessionView() {
                 {m.role === "user" ? "你" : "引导师"}
                 {m.kind === "invitation" && (
                   <span className={styles.kind}>开场白</span>
+                )}
+                {m.kind === "crisis" && (
+                  <span className={`${styles.kind} ${styles.kindCrisis}`}>
+                    危机提示
+                  </span>
                 )}
               </div>
               <div className={styles.content}>{m.content}</div>

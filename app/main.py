@@ -99,6 +99,7 @@ class SessionStore:
             except Exception:
                 continue
             report = session.get("report") or {}
+            crisis = session.get("crisis") or {}
             out.append({
                 "session_id": sid,
                 "status": session.get("status", "active"),
@@ -109,6 +110,7 @@ class SessionStore:
                 or session.get("created_at")
                 or "",
                 "title": _session_title(sid),
+                "crisis_flagged": bool(crisis.get("triggered")),
                 "has_report": bool(report.get("path")),
                 "report_ok": (report.get("checks") or {}).get("ok", False),
             })
@@ -231,6 +233,7 @@ def get_session(session_id: str):
         "rounds": s.get("rounds", 0),
         "transcript": transcript,
         "coverage": _public_status(engine),
+        "crisis": s.get("crisis", {"triggered": False, "round": 0}),
         "report": s.get("report"),
     }
 
