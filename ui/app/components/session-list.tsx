@@ -26,9 +26,21 @@ export function SessionList(props: { narrow?: boolean }) {
   const [sessions, setSessions] = useState<BackendSession[]>([]);
   const [error, setError] = useState(false);
 
+  const load = async () => {
+    try {
+      const resp = await fetch(`${PORTRAITIST_BASE}/api/sessions`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      setSessions(data.sessions ?? []);
+      setError(false);
+    } catch {
+      setError(true);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
-    const load = async () => {
+    const safeLoad = async () => {
       try {
         const resp = await fetch(`${PORTRAITIST_BASE}/api/sessions`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -41,13 +53,28 @@ export function SessionList(props: { narrow?: boolean }) {
         if (alive) setError(true);
       }
     };
-    load();
-    const timer = setInterval(load, 30000);
+    safeLoad();
+    const timer = setInterval(safeLoad, 30000);
     return () => {
       alive = false;
       clearInterval(timer);
     };
   }, []);
+
+  const removeSession = async (sid: string) => {
+    if (!window.confirm(`删除会话 ${sid.slice(0, 8)}？（本地文件将一并删除）`))
+      return;
+    try {
+      const resp = await fetch(
+        `${PORTRAITIST_BASE}/api/sessions/${sid}`,
+        { method: "DELETE" },
+      );
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      await load();
+    } catch {
+      window.alert("删除失败：后端未连接或会话不存在");
+    }
+  };
 
   if (error) {
     return (
@@ -69,7 +96,20 @@ export function SessionList(props: { narrow?: boolean }) {
         >
           <div className={styles.itemTitle}>
             <span className={styles.dot} data-status={s.status} />
-            {s.title || s.session_id.slice(0, 12)}
+            <span className={styles.itemTitleText}>
+              {s.title || s.session_id.slice(0, 12)}
+            </span>
+            <span
+              className={styles.deleteBtn}
+              role="button"
+              title="删除会话"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeSession(s.session_id);
+              }}
+            >
+              🗑
+            </span>
           </div>
           <div className={styles.itemMeta}>
             {STATUS_TEXT[s.status] ?? s.status} · {s.rounds} 轮

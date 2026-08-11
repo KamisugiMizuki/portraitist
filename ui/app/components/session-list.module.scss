@@ -3,8 +3,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 4px;
-  overflow-y: auto;
-  height: 100%;
+  /* 滚动交给外层 sidebar-body（避免双滚动条） */
 }
 
 .item {
@@ -23,9 +22,31 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.itemTitleText {
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.deleteBtn {
+  flex-shrink: 0;
+  font-size: 12px;
+  opacity: 0;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 4px;
+  transition: opacity 0.15s;
+
+  &:hover {
+    background: rgba(255, 0, 0, 0.12);
+  }
+}
+
+.item:hover .deleteBtn {
+  opacity: 0.7;
 }
 
 .dot {
