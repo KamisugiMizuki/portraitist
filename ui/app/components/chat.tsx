@@ -109,7 +109,11 @@ import { ClientApi, MultimodalContent } from "../client/api";
 
 import { getModelProvider } from "../utils/model";
 import clsx from "clsx";
-import { useAllSessionStatuses } from "../utils/portraitist";
+import {
+  ensurePortraitistSession,
+  getPortraitistSessionId,
+  useAllSessionStatuses,
+} from "../utils/portraitist";
 
 const localStorage = safeLocalStorage();
 
@@ -535,6 +539,34 @@ function _Chat() {
   // portraitist：当前会话后端状态（报告入口判定）
   const statuses = useAllSessionStatuses();
   const badge = statuses[session.id] || "";
+
+  // portraitist：新会话自动绑定后端，显示 cli.py 等效开场（欢迎语 + 邀请）
+  useEffect(() => {
+    const bound = getPortraitistSessionId(session.id);
+    if (bound || session.messages.length > 0) return;
+    let alive = true;
+    (async () => {
+      try {
+        const welcome = await ensurePortraitistSession(session.id);
+        if (!alive || !welcome) return;
+        useChatStore.getState().updateTargetSession(session, (s) => {
+          s.messages = [
+            createMessage({
+              role: "assistant",
+              content: Locale.Store.BotHello,
+            }),
+            createMessage({ role: "assistant", content: welcome }),
+          ];
+        });
+      } catch (e) {
+        console.error("[portraitist] 新会话绑定失败", e);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
 
   // stop response
   const onUserStop = (messageId: string) => {

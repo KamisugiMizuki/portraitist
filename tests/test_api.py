@@ -197,6 +197,35 @@ def test_report_endpoint():
     assert "核心特质图谱" in data["markdown"]
     assert data["checks"]["ok"] is True
 
+
+def test_open_session_dir_endpoint(monkeypatch):
+    tmp = tempfile.mkdtemp(prefix="hermes-api-")
+    _install_fake(tmp)
+    client = TestClient(main.app)
+
+    opened = []
+    monkeypatch.setattr(main.os, "startfile", lambda p: opened.append(p))
+
+    engine, _ = main.STORE.create()
+    sid = engine.session["session_id"]
+
+    # 合法 id → 200 + 调用 startfile
+    r = client.post(f"/api/sessions/{sid}/open")
+    assert r.status_code == 200, r.text
+    assert r.json()["ok"] is True
+    assert len(opened) == 1 and opened[0].endswith(sid)
+
+    # 含路径分隔符 → 路由不匹配（404，请求不到达端点）
+    r = client.post("/api/sessions/..%2F..%2Fconfig/open")
+    assert r.status_code == 404
+    # 非 hex 字符 → 端点校验 400
+    r = client.post("/api/sessions/ZZZ123456789/open")
+    assert r.status_code == 400
+
+    # 格式合法但不存在 → 404
+    r = client.post("/api/sessions/abcdef123456/open")
+    assert r.status_code == 404
+
     # 未完成会话的报告 → 404
     engine2, _ = main.STORE.create()
     r = client.get(f"/api/sessions/{engine2.session['session_id']}/report")

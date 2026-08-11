@@ -104,6 +104,7 @@ class SessionStore:
                 "status": session.get("status", "active"),
                 "rounds": session.get("rounds", 0),
                 "created_at": session.get("created_at", ""),
+                "title": _session_title(sid),
                 "has_report": bool(report.get("path")),
                 "report_ok": (report.get("checks") or {}).get("ok", False),
             })
@@ -174,6 +175,22 @@ class ChatResponse(BaseModel):
     note: str = ""
 
 
+def _session_title(sid: str) -> str:
+    """取会话标题：首条非系统用户消息（前 24 字）；无则空。"""
+    tpath = os.path.join(SESSIONS_DIR, sid, "transcript.jsonl")
+    if not os.path.exists(tpath):
+        return ""
+    try:
+        for line in open(tpath, encoding="utf-8"):
+            e = json.loads(line)
+            if e.get("role") == "user" and e.get("kind") != "system":
+                content = (e.get("content") or "").strip().replace("\n", " ")
+                return content[:24]
+    except Exception:
+        pass
+    return ""
+
+
 # ---------- API 端点 ----------
 
 @app.get("/api/sessions")
@@ -235,6 +252,22 @@ def chat(session_id: str, req: ChatRequest):
 def session_status(session_id: str):
     engine = STORE.get(session_id)
     return _public_status(engine)
+
+
+@app.post("/api/sessions/{session_id}/open")
+def open_session_dir(session_id: str):
+    """打开会话本地目录（仅限 sessions/ 下，白名单校验）。"""
+    # session_id 白名单：会话 id 为 12 位 hex（防路径穿越）
+    if not re.fullmatch(r"[0-9a-f]{12}", session_id):
+        raise HTTPException(400, "非法的会话 id")
+    path = os.path.join(SESSIONS_DIR, session_id)
+    if not os.path.isdir(path):
+        raise HTTPException(404, f"会话目录不存在: {session_id}")
+    try:
+        os.startfile(path)  # Windows：资源管理器打开
+    except OSError as e:
+        raise HTTPException(500, f"打开目录失败: {e}")
+    return {"ok": True, "path": path}
 
 
 @app.get("/api/sessions/{session_id}/report")

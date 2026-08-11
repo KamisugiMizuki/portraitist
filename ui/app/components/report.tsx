@@ -1,7 +1,7 @@
 // portraitist 报告视图页（M3）：复用 NextChat Markdown 渲染链 + 导出按钮
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import LoadingIcon from "../icons/three-dots.svg";
 import { useChatStore } from "../store";
 import { getPortraitistSessionId, PORTRAITIST_BASE } from "../utils/portraitist";
@@ -19,12 +19,15 @@ interface ReportData {
 
 export function ReportPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const session = useChatStore((state) => state.currentSession());
   const [data, setData] = useState<ReportData | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const sid = getPortraitistSessionId(session.id);
+    // ?sid= 优先（从会话详情页进入）；否则用当前本地会话映射
+    const sid =
+      searchParams.get("sid") || getPortraitistSessionId(session.id);
     if (!sid) {
       setError("该会话尚未绑定后端（可能是未进行过访谈的本地会话）");
       return;
@@ -35,7 +38,7 @@ export function ReportPage() {
       )
       .then((d) => setData(d))
       .catch((e) => setError(`报告获取失败: ${e.message}`));
-  }, [session.id]);
+  }, [searchParams, session.id]);
 
   const exportMd = () => {
     if (!data) return;

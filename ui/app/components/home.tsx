@@ -46,6 +46,13 @@ const ReportPage = dynamic(async () => (await import("./report")).ReportPage, {
   loading: () => <Loading noLogo />,
 });
 
+const SessionView = dynamic(
+  async () => (await import("./session-view")).SessionView,
+  {
+    loading: () => <Loading noLogo />,
+  },
+);
+
 export function useSwitchTheme() {
   const config = useAppConfig();
 
@@ -147,6 +154,7 @@ function Screen() {
             <Route path={Path.Home} element={<Chat />} />
             <Route path={Path.Chat} element={<Chat />} />
             <Route path={Path.Report} element={<ReportPage />} />
+            <Route path="/session/:sessionId" element={<SessionView />} />
           </Routes>
         </WindowContent>
       </>

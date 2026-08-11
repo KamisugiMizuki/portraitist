@@ -1,0 +1,106 @@
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+
+  .meta {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .title {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sub {
+    color: var(--secondary);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+.badge {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+
+  &.active {
+    background: #2f6f4f33;
+    color: #2f9e63;
+  }
+
+  &.confirming {
+    background: #b5890033;
+    color: #b58900;
+  }
+
+  &.completed {
+    background: #2b6cb033;
+    color: #4a9eff;
+  }
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.msg {
+  display: flex;
+  gap: 10px;
+
+  .body {
+    flex: 1;
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+
+  .role {
+    font-size: 12px;
+    color: var(--secondary);
+    margin-bottom: 4px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .kind {
+    background: #b5890033;
+    color: #b58900;
+    font-size: 10px;
+    padding: 0 6px;
+    border-radius: 8px;
+  }
+
+  .content {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    font-size: 14px;
+  }
+}
+
+.error {
+  text-align: center;
+  padding: 40px;
+  color: var(--secondary);
+}

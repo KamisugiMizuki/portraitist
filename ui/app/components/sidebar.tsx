@@ -25,9 +25,7 @@ import dynamic from "next/dynamic";
 import { Selector, showConfirm } from "./ui-lib";
 import clsx from "clsx";
 
-const ChatList = dynamic(async () => (await import("./chat-list")).ChatList, {
-  loading: () => null,
-});
+import { SessionList } from "./session-list";
 
 export function useHotKey() {
   const chatStore = useChatStore();
@@ -240,7 +238,7 @@ export function SideBar(props: { className?: string }) {
           }
         }}
       >
-        <ChatList narrow={shouldNarrow} />
+        <SessionList narrow={shouldNarrow} />
       </SideBarBody>
       <SideBarTail
         primaryAction={
