@@ -40,6 +40,16 @@ export function getPortraitistSessionId(localSessionId: string): string {
   return map()[localSessionId] || "";
 }
 
+/** 绑定本地会话 → 后端会话（写映射，供 continueChat 等复用） */
+export function bindPortraitistSession(localSessionId: string, backendId: string) {
+  const m = map();
+  m[localSessionId] = backendId;
+  save(m);
+}
+
+/** 进行中的创建请求去重（连点"新的聊天"只创建一个后端会话） */
+const pendingCreates = new Map<string, Promise<string>>();
+
 /** 确保本地会话已绑定后端会话；未绑定时创建并返回欢迎文本（无则空串）。 */
 export async function ensurePortraitistSession(
   localSessionId: string,
@@ -47,6 +57,19 @@ export async function ensurePortraitistSession(
   const existing = getPortraitistSessionId(localSessionId);
   if (existing) return "";
 
+  const pending = pendingCreates.get(localSessionId);
+  if (pending) return pending;
+
+  const p = doCreate(localSessionId);
+  pendingCreates.set(localSessionId, p);
+  try {
+    return await p;
+  } finally {
+    pendingCreates.delete(localSessionId);
+  }
+}
+
+async function doCreate(localSessionId: string): Promise<string> {
   const resp = await fetch(`${PORTRAITIST_BASE}/api/sessions`, {
     method: "POST",
   });

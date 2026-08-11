@@ -105,9 +105,13 @@
   }
 
   .content {
-    white-space: pre-wrap;
     line-height: 1.6;
     font-size: 14px;
+    overflow-wrap: break-word;
+  }
+
+  .user {
+    white-space: pre-wrap; /* 用户纯文本保留换行；Markdown 消息不继承 */
   }
 }
 

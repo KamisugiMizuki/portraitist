@@ -99,7 +99,12 @@ export function SessionList(props: { narrow?: boolean }) {
         <div
           key={s.session_id}
           className={styles.item}
+          role="link"
+          tabIndex={0}
           onClick={() => navigate(`/session/${s.session_id}`)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") navigate(`/session/${s.session_id}`);
+          }}
           title={s.session_id}
         >
           <div className={styles.itemTitle}>
@@ -135,9 +140,17 @@ export function SessionList(props: { narrow?: boolean }) {
             {s.has_report && (
               <span
                 className={styles.report}
+                role="link"
+                tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/report?sid=${s.session_id}`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.stopPropagation();
+                    navigate(`/report?sid=${s.session_id}`);
+                  }
                 }}
               >
                 📄 报告

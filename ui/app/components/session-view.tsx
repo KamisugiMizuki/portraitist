@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useChatStore } from "../store";
 import { createMessage } from "../store/chat";
-import { getPortraitistSessionId } from "../utils/portraitist";
+import { getPortraitistSessionId, bindPortraitistSession } from "../utils/portraitist";
 import { IconButton } from "./button";
 import { Avatar } from "./emoji";
 import styles from "./session-view.module.scss";
@@ -67,10 +67,7 @@ export function SessionView() {
     const chatStore = useChatStore.getState();
     chatStore.newSession();
     const session = chatStore.currentSession();
-    localStorage.setItem(
-      `portraitist:session-map:${session.id}`,
-      detail!.session_id,
-    );
+    bindPortraitistSession(session.id, detail!.session_id);
     if (detail!.title) {
       chatStore.updateTargetSession(session, (s) => {
         s.topic = detail!.title!;
@@ -171,7 +168,7 @@ export function SessionView() {
                   </span>
                 )}
               </div>
-              <div className={styles.content}>
+              <div className={`${styles.content} ${m.role === "user" ? styles.user : ""}`}>
                 {m.role === "user" ? (
                   m.content
                 ) : (

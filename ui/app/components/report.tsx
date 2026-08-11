@@ -73,7 +73,14 @@ export function ReportPage() {
         <>
           <div className={styles.meta}>
             <span>生成时间: {data.generated_at || "-"}</span>
-            <span>校验: {data.checks?.ok ? "✅ 通过" : "⚠️ 未通过"}</span>
+            <span>
+              校验:{" "}
+              {data.checks
+                ? data.checks.ok
+                  ? "✅ 通过"
+                  : "⚠️ 未通过"
+                : "-"}
+            </span>
           </div>
           {data.checks && data.checks.warnings && data.checks.warnings.length > 0 && (
             <div className={styles.warnings}>
