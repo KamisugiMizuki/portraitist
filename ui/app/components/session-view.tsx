@@ -120,7 +120,9 @@ export function SessionView() {
       </div>
 
       <div className={styles.messages}>
-        {detail.transcript.map((m, i) => (
+        {detail.transcript
+          .filter((m) => m.role !== "system") // 过滤内部错误日志（extract_failed 等）
+          .map((m, i) => (
           <div
             key={i}
             className={`${styles.msg} ${m.role === "user" ? styles.user : styles.assistant}`}
