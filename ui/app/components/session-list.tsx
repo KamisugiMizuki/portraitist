@@ -1,6 +1,7 @@
 // portraitist 会话列表：后端 sessions/ 全量（替代 NextChat 本地会话列表）
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { SESSIONS_CHANGED } from "../utils/portraitist";
 import styles from "./session-list.module.scss";
 
 const PORTRAITIST_BASE = "http://127.0.0.1:8000";
@@ -54,10 +55,12 @@ export function SessionList(props: { narrow?: boolean }) {
       }
     };
     safeLoad();
-    const timer = setInterval(safeLoad, 30000);
+    const timer = setInterval(safeLoad, 15000);
+    window.addEventListener(SESSIONS_CHANGED, safeLoad);
     return () => {
       alive = false;
       clearInterval(timer);
+      window.removeEventListener(SESSIONS_CHANGED, safeLoad);
     };
   }, []);
 

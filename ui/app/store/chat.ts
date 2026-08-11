@@ -27,7 +27,7 @@ import {
 import Locale, { getLang } from "../locales";
 import { prettyObject } from "../utils/format";
 import { createPersistStore } from "../utils/store";
-import { ensurePortraitistSession, injectSessionTag } from "../utils/portraitist";
+import { ensurePortraitistSession, injectSessionTag, notifySessionsChanged } from "../utils/portraitist";
 import { estimateTokenLength } from "../utils/token";
 import { ModelConfig, ModelType, useAppConfig } from "./config";
 import { useAccessStore } from "./access";
@@ -351,6 +351,7 @@ export const useChatStore = createPersistStore(
         try {
           const welcome = await ensurePortraitistSession(session.id);
           if (welcome) {
+            notifySessionsChanged(); // 新会话已创建，通知列表刷新
             const welcomeMsg = createMessage({
               role: "assistant",
               content: welcome,

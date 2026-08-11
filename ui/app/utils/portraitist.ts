@@ -1,6 +1,15 @@
 import type { RequestMessage } from "../client/api";
 import { useEffect, useState } from "react";
 
+/** session 列表变更事件（新建/绑定后端会话后派发，SessionList 监听刷新） */
+export const SESSIONS_CHANGED = "portraitist:sessions-changed";
+
+export function notifySessionsChanged() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(SESSIONS_CHANGED));
+  }
+}
+
 // portraitist 后端会话映射（M3 接线）
 //
 // NextChat 会话（本地 nanoid）↔ portraitist 后端会话（服务端证据库）映射：

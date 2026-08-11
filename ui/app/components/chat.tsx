@@ -112,6 +112,7 @@ import clsx from "clsx";
 import {
   ensurePortraitistSession,
   getPortraitistSessionId,
+  notifySessionsChanged,
   useAllSessionStatuses,
 } from "../utils/portraitist";
 
@@ -520,6 +521,7 @@ function _Chat() {
       try {
         const welcome = await ensurePortraitistSession(session.id);
         if (!alive || !welcome) return;
+        notifySessionsChanged(); // 新会话已创建，通知列表刷新
         useChatStore.getState().updateTargetSession(session, (s) => {
           s.messages = [
             createMessage({
