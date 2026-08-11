@@ -104,10 +104,15 @@ class SessionStore:
                 "status": session.get("status", "active"),
                 "rounds": session.get("rounds", 0),
                 "created_at": session.get("created_at", ""),
+                # 排序时间：completed 用报告完成时间，其余用创建时间
+                "sort_time": report.get("generated_at")
+                or session.get("created_at")
+                or "",
                 "title": _session_title(sid),
                 "has_report": bool(report.get("path")),
                 "report_ok": (report.get("checks") or {}).get("ok", False),
             })
+        out.sort(key=lambda s: s["sort_time"], reverse=True)
         return out
 
     def delete(self, session_id: str) -> None:
