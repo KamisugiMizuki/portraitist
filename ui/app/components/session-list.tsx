@@ -1,6 +1,7 @@
 // portraitist 会话列表：后端 sessions/ 全量（替代 NextChat 本地会话列表）
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { showConfirm, showToast } from "./ui-lib";
 import { SESSIONS_CHANGED } from "../utils/portraitist";
 import styles from "./session-list.module.scss";
 
@@ -65,9 +66,11 @@ export function SessionList(props: { narrow?: boolean }) {
     };
   }, []);
 
-  const removeSession = async (sid: string) => {
-    if (!window.confirm(`删除会话 ${sid.slice(0, 8)}？（本地文件将一并删除）`))
-      return;
+  const removeSession = async (sid: string, title: string) => {
+    const ok = await showConfirm(
+      `删除会话「${title || sid.slice(0, 8)}」？（本地文件将一并删除）`,
+    );
+    if (!ok) return;
     try {
       const resp = await fetch(
         `${PORTRAITIST_BASE}/api/sessions/${sid}`,
@@ -75,8 +78,9 @@ export function SessionList(props: { narrow?: boolean }) {
       );
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       await load();
+      showToast(`已删除会话「${title || sid.slice(0, 8)}」`);
     } catch {
-      window.alert("删除失败：后端未连接或会话不存在");
+      showToast("删除失败：后端未连接或会话不存在");
     }
   };
 
@@ -106,10 +110,18 @@ export function SessionList(props: { narrow?: boolean }) {
             <span
               className={styles.deleteBtn}
               role="button"
+              tabIndex={0}
               title="删除会话"
+              aria-label={`删除会话 ${s.title || s.session_id.slice(0, 8)}`}
               onClick={(e) => {
                 e.stopPropagation();
-                removeSession(s.session_id);
+                removeSession(s.session_id, s.title);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  removeSession(s.session_id, s.title);
+                }
               }}
             >
               🗑

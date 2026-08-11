@@ -26,6 +26,7 @@ import { Selector, showConfirm } from "./ui-lib";
 import clsx from "clsx";
 
 import { SessionList } from "./session-list";
+import { PORTRAITIST_NEW_CHAT } from "../utils/portraitist";
 
 export function useHotKey() {
   const chatStore = useChatStore();
@@ -264,6 +265,11 @@ export function SideBar(props: { className?: string }) {
               // portraitist fork：直接新建访谈会话
               chatStore.newSession();
               navigate(Path.Chat);
+              // 等待新会话组件挂载后再派发（否则事件被旧会话的监听器接收）
+              setTimeout(
+                () => window.dispatchEvent(new Event(PORTRAITIST_NEW_CHAT)),
+                0,
+              );
             }}
             shadow
           />

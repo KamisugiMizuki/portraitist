@@ -60,3 +60,23 @@
 .markdown {
   line-height: 1.8;
 }
+
+.warnings {
+  background: #b5890015;
+  border: 1px solid #b5890033;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 12px;
+
+  ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    color: var(--secondary);
+  }
+}
+
+.warningsTitle {
+  font-weight: 600;
+  color: #b58900;
+}

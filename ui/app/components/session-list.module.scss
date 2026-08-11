@@ -34,19 +34,18 @@
 .deleteBtn {
   flex-shrink: 0;
   font-size: 12px;
-  opacity: 0;
+  opacity: 0.45;
   cursor: pointer;
   padding: 0 2px;
   border-radius: 4px;
   transition: opacity 0.15s;
+  outline: none;
 
-  &:hover {
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
     background: rgba(255, 0, 0, 0.12);
   }
-}
-
-.item:hover .deleteBtn {
-  opacity: 0.7;
 }
 
 .dot {

@@ -113,6 +113,7 @@ import {
   ensurePortraitistSession,
   getPortraitistSessionId,
   notifySessionsChanged,
+  PORTRAITIST_NEW_CHAT,
   useAllSessionStatuses,
 } from "../utils/portraitist";
 
@@ -478,7 +479,13 @@ function _Chat() {
 
   // chat commands shortcuts（portraitist fork：仅保留无害导航命令）
   const chatCommands = useChatCommand({
-    new: () => chatStore.newSession(),
+    new: () => {
+      chatStore.newSession();
+      setTimeout(
+        () => window.dispatchEvent(new Event(PORTRAITIST_NEW_CHAT)),
+        0,
+      );
+    },
     prev: () => chatStore.nextSession(-1),
     next: () => chatStore.nextSession(1),
   });
@@ -513,11 +520,12 @@ function _Chat() {
   const badge = statuses[session.id] || "";
 
   // portraitist：新会话自动绑定后端，显示 cli.py 等效开场（欢迎语 + 邀请）
+  // 仅用户主动点击"新的聊天"时触发（避免打开页面即创建 0 轮会话）
   useEffect(() => {
     const bound = getPortraitistSessionId(session.id);
     if (bound || session.messages.length > 0) return;
     let alive = true;
-    (async () => {
+    const bind = async () => {
       try {
         const welcome = await ensurePortraitistSession(session.id);
         if (!alive || !welcome) return;
@@ -534,9 +542,11 @@ function _Chat() {
       } catch (e) {
         console.error("[portraitist] 新会话绑定失败", e);
       }
-    })();
+    };
+    window.addEventListener(PORTRAITIST_NEW_CHAT, bind);
     return () => {
       alive = false;
+      window.removeEventListener(PORTRAITIST_NEW_CHAT, bind);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.id]);

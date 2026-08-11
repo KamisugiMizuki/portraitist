@@ -231,6 +231,8 @@ def get_session(session_id: str):
         "session_id": session_id,
         "status": s.get("status"),
         "rounds": s.get("rounds", 0),
+        "created_at": s.get("created_at", ""),
+        "title": _session_title(session_id),
         "transcript": transcript,
         "coverage": _public_status(engine),
         "crisis": s.get("crisis", {"triggered": False, "round": 0}),

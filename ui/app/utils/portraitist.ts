@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 /** session 列表变更事件（新建/绑定后端会话后派发，SessionList 监听刷新） */
 export const SESSIONS_CHANGED = "portraitist:sessions-changed";
 
+/** 用户主动点击"新的聊天"事件（聊天页监听后才自动绑定后端，避免打开即建会话） */
+export const PORTRAITIST_NEW_CHAT = "portraitist:new-chat";
+
 export function notifySessionsChanged() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(SESSIONS_CHANGED));

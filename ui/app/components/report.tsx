@@ -75,6 +75,16 @@ export function ReportPage() {
             <span>生成时间: {data.generated_at || "-"}</span>
             <span>校验: {data.checks?.ok ? "✅ 通过" : "⚠️ 未通过"}</span>
           </div>
+          {data.checks && data.checks.warnings && data.checks.warnings.length > 0 && (
+            <div className={styles.warnings}>
+              <div className={styles.warningsTitle}>校验说明</div>
+              <ul>
+                {data.checks.warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className={styles.markdown}>
             <Markdown content={data.markdown} />
           </div>

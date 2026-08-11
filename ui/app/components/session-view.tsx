@@ -1,11 +1,17 @@
 // portraitist 会话详情页：显示后端 session 的 transcript 全量原文
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useChatStore } from "../store";
+import { createMessage } from "../store/chat";
 import { getPortraitistSessionId } from "../utils/portraitist";
 import { IconButton } from "./button";
 import { Avatar } from "./emoji";
 import styles from "./session-view.module.scss";
+
+const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
+  loading: () => null,
+});
 
 const PORTRAITIST_BASE = "http://127.0.0.1:8000";
 
@@ -19,6 +25,8 @@ interface SessionDetail {
   session_id: string;
   status: string;
   rounds: number;
+  created_at?: string;
+  title?: string;
   transcript: TranscriptMsg[];
   crisis?: { triggered?: boolean; round?: number };
   report: { path?: string; checks?: { ok?: boolean } } | null;
@@ -55,7 +63,7 @@ export function SessionView() {
   const unresolved = detail.coverage?.unresolved_contradictions ?? 0;
 
   const continueChat = () => {
-    // 绑定到本地会话继续访谈（active 会话）
+    // 绑定到本地会话继续访谈（active 会话），标题延续后端会话
     const chatStore = useChatStore.getState();
     chatStore.newSession();
     const session = chatStore.currentSession();
@@ -63,6 +71,21 @@ export function SessionView() {
       `portraitist:session-map:${session.id}`,
       detail!.session_id,
     );
+    if (detail!.title) {
+      chatStore.updateTargetSession(session, (s) => {
+        s.topic = detail!.title!;
+        // 历史消息注记：引导师会话历史在详情页可回看
+        s.messages = [
+          {
+            ...createMessage({
+              role: "assistant",
+              content: `（继续访谈：会话 ${detail!.session_id.slice(0, 8)}，历史记录请在会话详情页回看）`,
+            }),
+            streaming: false,
+          },
+        ];
+      });
+    }
     navigate("/chat");
   };
 
@@ -77,7 +100,7 @@ export function SessionView() {
         />
         <div className={styles.meta}>
           <div className={styles.title}>
-            会话 {detail.session_id.slice(0, 8)}
+            {detail.title || `会话 ${detail.session_id.slice(0, 8)}`}
             <span className={`${styles.badge} ${styles[detail.status]}`}>
               {detail.status}
             </span>
@@ -90,7 +113,9 @@ export function SessionView() {
           <div className={styles.sub}>
             {detail.rounds} 轮 · 维度饱和 {dimCount}/{dimTotal}
             {unresolved > 0 ? ` · 未闭环矛盾 ${unresolved}` : ""} ·{" "}
-            {new Date().toLocaleDateString()}
+            {detail.created_at
+              ? new Date(detail.created_at).toLocaleDateString()
+              : ""}
           </div>
         </div>
         <div className={styles.actions}>
@@ -146,7 +171,13 @@ export function SessionView() {
                   </span>
                 )}
               </div>
-              <div className={styles.content}>{m.content}</div>
+              <div className={styles.content}>
+                {m.role === "user" ? (
+                  m.content
+                ) : (
+                  <Markdown content={m.content} />
+                )}
+              </div>
             </div>
           </div>
         ))}
